@@ -17,8 +17,25 @@ use Illuminate\Notifications\Notifiable;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
+    public const MANAGED_ROLES = ['perawat', 'keluarga'];
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasUuids, Notifiable;
+
+    public function isActiveAdmin(): bool
+    {
+        return $this->is_active && $this->role === 'admin';
+    }
+
+    public function homeRoute(): string
+    {
+        return match ($this->role) {
+            'admin' => 'admin.home',
+            'perawat' => 'perawat.home',
+            'keluarga' => 'keluarga.home',
+            default => abort(403, 'Peran akun tidak valid.'),
+        };
+    }
 
     public function elderlies(): HasMany
     {

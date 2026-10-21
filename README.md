@@ -1,58 +1,73 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Silansia
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1 serta autentikasi, provisioning akun, dan otorisasi Phase 2.
 
-## About Laravel
+Laravel 13, PostgreSQL, Inertia React, Tailwind CSS 4, dan Vite digunakan sesuai dependency yang sudah tersedia. Entitas aplikasi memakai UUID. Tidak ada registrasi publik.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Menjalankan lokal
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Gunakan PHP dengan ekstensi pdo_pgsql, Composer, Node/npm, dan PostgreSQL. Pada mesin ini PHP tersedia melalui Herd:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+~~~powershell
+$php = 'C:/Users/Dije Naufal/.config/herd/bin/php85/php.exe'
+& $php --version
+~~~
 
-## Learning Laravel
+Untuk checkout baru, pasang dependency yang belum tersedia dengan composer install dan npm ci. Buat .env dari .env.example hanya jika .env belum ada, isi koneksi PostgreSQL privat, dan buat APP_KEY hanya pada instalasi baru. Jangan menimpa .env atau mengganti key instalasi yang sudah digunakan. Hindari composer setup pada instalasi yang sudah memiliki key.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+~~~powershell
+& $php artisan migrate:status
+& $php artisan migrate
+npm.cmd run build
+& $php artisan serve
+# Alternatif saat mengembangkan frontend, pada terminal terpisah:
+npm.cmd run dev
+~~~
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Migration UUID Phase 1 sengaja berhenti bila ada user legacy atau sesi terhubung yang belum dipetakan. Jangan menghapus data untuk melewati guard. Tidak ada migration baru untuk Phase 2.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Membuat Admin awal
 
-## Agentic Development
+Jalankan sendiri setelah meninjau implementasi dan menyetujui pembuatan akun:
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+~~~powershell
+& $php artisan silansia:bootstrap-admin
+~~~
 
-```bash
-composer require laravel/boost --dev
+Command meminta nama, email, kata sandi tersembunyi, dan konfirmasi. Kata sandi minimal 12 karakter, mencakup huruf besar/kecil dan angka, maksimal 72 byte. Command tidak menerima kata sandi lewat argumen, tidak menyediakan kredensial bawaan, dan menolak mode noninteraktif maupun bootstrap kedua bila Admin sudah ada. Input tersembunyi memerlukan terminal yang mendukung; kegagalan tidak beralih ke input kata sandi terbuka.
 
-php artisan boost:install
-```
+**Admin pengembangan belum dibuat otomatis.** Buka /login setelah bootstrap manual. Admin membuat akun perawat/keluarga melalui /admin/accounts/create. Akun baru nonaktif; sampaikan kredensial secara aman lalu aktifkan melalui daftar akun.
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Akses akun
 
-## Contributing
+| Role aktif | Beranda | Kelola akun |
+| --- | --- | --- |
+| admin | /admin | Ya, hanya perawat/keluarga |
+| perawat | /perawat | Tidak |
+| keluarga | /keluarga | Tidak |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Daftar akun memiliki pencarian nama/email, filter role/status, dan pagination 15 akun. Reset kata sandi membutuhkan kata sandi Admin saat ini, mempertahankan status/role, dan mencabut sesi akun tujuan. UI tidak menyediakan perubahan role, pengelolaan Admin, atau pemulihan Admin yang lupa kata sandi.
 
-## Code of Conduct
+Login meregenerasi sesi. Logout menginvalidasi sesi dan mengganti token CSRF. Akun nonaktif ditolak saat login maupun pada permintaan berikutnya. Middleware auth.session menolak sesi dengan hash kata sandi lama. Pembatasan login: 5 kegagalan per email/IP dalam 60 detik, ditambah 30 permintaan per IP/menit. Reset Admin dibatasi 6 permintaan per Admin/menit.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Gunakan SESSION_DRIVER=database seperti konfigurasi proyek agar deactivation/reset dapat menghapus semua sesi akun tujuan. Driver sesi lain belum dijadikan kontrak operasional Phase 2; jangan menggantinya tanpa pengujian revokasi.
 
-## Security Vulnerabilities
+Di luar lingkungan local, gunakan HTTPS, APP_DEBUG=false, cookie sesi Secure/HttpOnly dan SameSite yang sesuai, serta konfigurasi proxy terpercaya. Enkripsi riwayat Inertia aktif secara default di luar local. Untuk mengaktifkannya secara lokal, gunakan HTTPS/localhost dan INERTIA_ENCRYPT_HISTORY=true; HTTP domain Herd non-HTTPS tidak mendukung Web Crypto. Tidak ada perubahan .env otomatis.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Verifikasi
 
-## License
+~~~powershell
+& $php tests/Support/run-postgres.php
+& $php artisan test --no-ansi
+& $php vendor/bin/pint --test app routes tests/Feature/Authentication tests/Feature/ExampleTest.php tests/Support/PostgresFeatureTestCase.php bootstrap/app.php config/inertia.php --no-ansi
+npm.cmd run build
+git diff --check
+~~~
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Runner PostgreSQL membuat database acak miliknya sendiri, memeriksa identitas/OID/owner/server/token serta cache child, dan membersihkannya setelah selesai. Role PostgreSQL memerlukan CREATEDB. Suite autentikasi dan database memakai transaksi setelah guard lulus. Jangan menjalankan child langsung atau mengarahkan suite ke database pengembangan.
+
+Tes Laravel umum memakai SQLite in-memory; kasus PostgreSQL sengaja skipped di sana dan harus diverifikasi melalui runner. Jangan menggunakan migrate:fresh, db:wipe, atau rollback pada database pengembangan.
+
+Lihat [laporan implementasi](SILANSIA_IMPLEMENTATION_REPORT.md) untuk hasil aktual dan batas verifikasi, serta [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Panduan database mencatat hasil historis Phase 1; hasil lintas fase terbaru ada di laporan implementasi.
+
+Phase 3, pengelolaan lansia/kamar/layanan, AI, insiden, kamera, notifikasi, dan billing belum diimplementasikan. Kelanjutan memerlukan persetujuan terpisah.

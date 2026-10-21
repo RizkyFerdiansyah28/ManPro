@@ -4,11 +4,11 @@ import { createRoot } from 'react-dom/client';
 
 createInertiaApp({
     resolve: (name) => {
-        const pages = import.meta.glob('./Pages/**/*.jsx', {
+        const pages = import.meta.glob('./pages/**/*.jsx', {
             eager: true,
         });
 
-        const page = pages[`./Pages/${name}.jsx`];
+        const page = pages[`./pages/${name}.jsx`];
 
         if (!page) {
             throw new Error(`Inertia page not found: ${name}`);

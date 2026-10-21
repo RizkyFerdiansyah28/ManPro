@@ -1,0 +1,35 @@
+import { useState } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+
+const labels = { admin: 'Admin', perawat: 'Perawat', keluarga: 'Keluarga' };
+
+export default function Index({ accounts, filters }) {
+    const [pending, setPending] = useState(null);
+    const form = useForm({ search: filters.search ?? '', role: filters.role ?? '', status: filters.status ?? '' });
+    function filter(event) {
+        event.preventDefault();
+        form.get('/admin/accounts', { preserveState: true, replace: true });
+    }
+    function changeStatus(account) {
+        const action = account.is_active ? 'deactivate' : 'activate';
+        if (!window.confirm(`${account.is_active ? 'Nonaktifkan' : 'Aktifkan'} akun ${account.name}?${account.is_active ? ' Akses sesi akun akan dicabut.' : ''}`)) return;
+        router.post(`/admin/accounts/${account.id}/${action}`, {}, { preserveScroll: true, onStart: () => setPending(account.id), onFinish: () => setPending(null) });
+    }
+    return (
+        <AppLayout><Head title="Kelola akun · Silansia" />
+            <div className="flex flex-wrap items-end justify-between gap-5"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">Administrasi</p><h1 className="mt-3 text-3xl font-bold tracking-tight">Kelola akun</h1><p className="mt-3 text-sm text-slate-500">Atur akses perawat dan keluarga di satu tempat.</p></div><Link href="/admin/accounts/create" className="rounded-xl bg-emerald-800 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-900 focus-visible:ring-4 focus-visible:ring-emerald-100">+ Buat akun</Link></div>
+            <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <form onSubmit={filter} className="grid gap-4 border-b border-slate-200 p-5 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]">
+                    <div><label htmlFor="search" className="mb-2 block text-xs font-semibold text-slate-600">Cari akun</label><input id="search" type="search" placeholder="Nama atau email" maxLength={100} value={form.data.search} onChange={(e) => form.setData('search', e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-emerald-700" /></div>
+                    <div><label htmlFor="role-filter" className="mb-2 block text-xs font-semibold text-slate-600">Peran</label><select id="role-filter" value={form.data.role} onChange={(e) => form.setData('role', e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"><option value="">Semua peran</option><option value="admin">Admin</option><option value="perawat">Perawat</option><option value="keluarga">Keluarga</option></select></div>
+                    <div><label htmlFor="status-filter" className="mb-2 block text-xs font-semibold text-slate-600">Status</label><select id="status-filter" value={form.data.status} onChange={(e) => form.setData('status', e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"><option value="">Semua status</option><option value="active">Aktif</option><option value="inactive">Nonaktif</option></select></div>
+                    <button disabled={form.processing} className="self-end rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50">{form.processing ? 'Mencari…' : 'Terapkan'}</button>
+                    {Object.keys(form.errors).length > 0 && <p className="text-sm text-red-700 sm:col-span-2" role="alert">{Object.values(form.errors).join(' ')}</p>}
+                </form>
+                {accounts.data.length ? <div className="overflow-x-auto"><table className="w-full min-w-2xl text-left text-sm"><caption className="sr-only">Daftar akun pengguna dan pengaturan akses</caption><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th scope="col" className="px-6 py-4 font-semibold">Pengguna</th><th scope="col" className="px-6 py-4 font-semibold">Peran</th><th scope="col" className="px-6 py-4 font-semibold">Status</th><th scope="col" className="px-6 py-4 text-right font-semibold">Tindakan</th></tr></thead><tbody className="divide-y divide-slate-100">{accounts.data.map((account) => <tr key={account.id} className="hover:bg-slate-50/60"><td className="px-6 py-5"><p className="font-semibold text-slate-800">{account.name}</p><p className="mt-1 text-xs text-slate-500">{account.email}</p></td><td className="px-6 py-5 text-slate-600">{labels[account.role]}</td><td className="px-6 py-5"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${account.is_active ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>{account.is_active ? 'Aktif' : 'Nonaktif'}</span></td><td className="px-6 py-5 text-right"><div className="flex justify-end gap-4">{account.can.updateStatus && <button type="button" disabled={pending !== null} onClick={() => changeStatus(account)} aria-label={`${account.is_active ? 'Nonaktifkan' : 'Aktifkan'} ${account.name}`} className={`rounded text-xs font-semibold focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:opacity-50 ${account.is_active ? 'text-red-700' : 'text-emerald-800'}`}>{pending === account.id ? 'Memproses…' : account.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>}{account.can.resetPassword && <Link href={`/admin/accounts/${account.id}/password`} aria-label={`Reset kata sandi ${account.name}`} className="rounded text-xs font-semibold text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-600">Reset sandi</Link>}{!account.can.updateStatus && <span className="text-xs text-slate-400">Akun dilindungi</span>}</div></td></tr>)}</tbody></table></div> : <div className="px-6 py-16 text-center"><h2 className="font-semibold">Belum ada akun yang sesuai</h2><p className="mt-2 text-sm text-slate-500">Ubah pencarian atau filter, atau buat akun baru.</p></div>}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 px-6 py-4 text-xs text-slate-500"><p>{accounts.total} akun · Halaman {accounts.current_page} dari {accounts.last_page}</p><nav aria-label="Halaman daftar akun" className="flex gap-3">{accounts.prev_page_url ? <Link href={accounts.prev_page_url} preserveState className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50">← Sebelumnya</Link> : <span aria-disabled="true" className="rounded-lg border border-slate-100 px-3 py-2 text-slate-300">← Sebelumnya</span>}{accounts.next_page_url ? <Link href={accounts.next_page_url} preserveState className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50">Berikutnya →</Link> : <span aria-disabled="true" className="rounded-lg border border-slate-100 px-3 py-2 text-slate-300">Berikutnya →</span>}</nav></div>
+            </section>
+        </AppLayout>
+    );
+}
