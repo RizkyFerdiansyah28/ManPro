@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    'default' => env('DB_CONNECTION', 'pgsql'),
 
     /*
     |--------------------------------------------------------------------------
@@ -31,6 +31,23 @@ return [
     */
 
     'connections' => [
+
+        // Hanya untuk database uji terisolasi; nama wajib diberikan secara eksplisit.
+        'silansia_testing' => [
+            'driver' => 'pgsql',
+            'url' => null,
+            'host' => env('SILANSIA_TEST_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('SILANSIA_TEST_DB_PORT', env('DB_PORT', '5432')),
+            'database' => env('SILANSIA_TEST_DB_DATABASE', ''),
+            'username' => env('SILANSIA_TEST_DB_USERNAME', env('DB_USERNAME', 'postgres')),
+            'password' => env('SILANSIA_TEST_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('SILANSIA_TEST_DB_SSLMODE', env('DB_SSLMODE', 'prefer')),
+            'timezone' => 'UTC',
+        ],
 
         'sqlite' => [
             'driver' => 'sqlite',
