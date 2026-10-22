@@ -14,9 +14,11 @@ export default function AppLayout({ children }) {
             <header className="border-b border-slate-200 bg-white">
                 <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5 px-5 py-5 sm:px-8">
                     <Brand href={user.home_url} />
-                    <nav aria-label="Navigasi utama" className="flex items-center gap-5 text-sm font-medium">
+                    <nav aria-label="Navigasi utama" className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm font-medium">
                         <Link href={user.home_url} className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Beranda</Link>
                         {user.role === 'admin' && <Link href="/admin/accounts" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Kelola akun</Link>}
+                        {user.role === 'admin' && <Link href="/admin/residents" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Kelola lansia</Link>}
+                        {user.role === 'keluarga' && <Link href="/keluarga/residents" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Lansia keluarga</Link>}
                     </nav>
                     <div className="flex items-center gap-4">
                         <div className="text-right"><p className="max-w-48 truncate text-sm font-semibold">{user.name}</p><p className="text-xs text-slate-500">{roles[user.role]}</p></div>

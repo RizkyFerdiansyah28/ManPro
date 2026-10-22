@@ -6,6 +6,7 @@
         <testsuite name="PostgreSQL">
             <directory>tests/Feature/Database</directory>
             <directory>tests/Feature/Authentication</directory>
+            <directory>tests/Feature/Residents</directory>
         </testsuite>
     </testsuites>
     <source><include><directory>app</directory></include></source>

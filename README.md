@@ -1,6 +1,6 @@
 # Silansia
 
-Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1 serta autentikasi, provisioning akun, dan otorisasi Phase 2.
+Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, serta pengelolaan lansia dan hubungan keluarga Phase 3A.
 
 Laravel 13, PostgreSQL, Inertia React, Tailwind CSS 4, dan Vite digunakan sesuai dependency yang sudah tersedia. Entitas aplikasi memakai UUID. Tidak ada registrasi publik.
 
@@ -24,7 +24,7 @@ npm.cmd run build
 npm.cmd run dev
 ~~~
 
-Migration UUID Phase 1 sengaja berhenti bila ada user legacy atau sesi terhubung yang belum dipetakan. Jangan menghapus data untuk melewati guard. Tidak ada migration baru untuk Phase 2.
+Migration UUID Phase 1 sengaja berhenti bila ada user legacy atau sesi terhubung yang belum dipetakan. Jangan menghapus data untuk melewati guard. Tidak ada migration baru untuk Phase 2 maupun Phase 3A.
 
 ## Membuat Admin awal
 
@@ -36,7 +36,7 @@ Jalankan sendiri setelah meninjau implementasi dan menyetujui pembuatan akun:
 
 Command meminta nama, email, kata sandi tersembunyi, dan konfirmasi. Kata sandi minimal 12 karakter, mencakup huruf besar/kecil dan angka, maksimal 72 byte. Command tidak menerima kata sandi lewat argumen, tidak menyediakan kredensial bawaan, dan menolak mode noninteraktif maupun bootstrap kedua bila Admin sudah ada. Input tersembunyi memerlukan terminal yang mendukung; kegagalan tidak beralih ke input kata sandi terbuka.
 
-**Admin pengembangan belum dibuat otomatis.** Buka /login setelah bootstrap manual. Admin membuat akun perawat/keluarga melalui /admin/accounts/create. Akun baru nonaktif; sampaikan kredensial secara aman lalu aktifkan melalui daftar akun.
+Bootstrap Admin tidak dijalankan otomatis. Bila Admin belum tersedia, lakukan bootstrap secara manual. Buka /login, lalu Admin membuat akun perawat/keluarga melalui /admin/accounts/create. Akun baru nonaktif; sampaikan kredensial secara aman lalu aktifkan melalui daftar akun.
 
 ## Akses akun
 
@@ -54,12 +54,24 @@ Gunakan SESSION_DRIVER=database seperti konfigurasi proyek agar deactivation/res
 
 Di luar lingkungan local, gunakan HTTPS, APP_DEBUG=false, cookie sesi Secure/HttpOnly dan SameSite yang sesuai, serta konfigurasi proxy terpercaya. Enkripsi riwayat Inertia aktif secara default di luar local. Untuk mengaktifkannya secara lokal, gunakan HTTPS/localhost dan INERTIA_ENCRYPT_HISTORY=true; HTTP domain Herd non-HTTPS tidak mendukung Web Crypto. Tidak ada perubahan .env otomatis.
 
+## Pengelolaan lansia — Phase 3A
+
+Admin membuka `/admin/residents` untuk mencari, memfilter status, menambah, dan melihat detail lansia. Nama serta tanggal lahir dapat diubah melalui halaman edit. Usia dihitung dari tanggal lahir, tanpa kolom usia tersimpan. Data baru berstatus aktif; penetapan status memakai tindakan terpisah dengan konfirmasi.
+
+Pilih penanggung jawab dari selector keluarga aktif yang dapat dicari berdasarkan nama/email, maksimal 15 akun per halaman. Satu keluarga dapat memiliki beberapa lansia. Pergantian keluarga melalui form khusus dengan konfirmasi, bukan payload edit biodata. Form yang sudah usang akan ditolak bila keluarga saat ini telah berubah.
+
+Keluarga yang dinonaktifkan tetap menjadi referensi historis; edit biodata tidak menghapus atau mengganti hubungan itu. Penetapan baru hanya menerima akun keluarga aktif. Setelah reassignment, akses baca mengikuti keluarga yang baru; keluarga lama tidak dapat membuka detail tersebut lagi. Record invoice, pembayaran, insiden, gait, stay, dan enrollment tidak diubah.
+
+Sesuai keputusan pengguna, **penonaktifan lansia ditolak jika masih ada masa tinggal atau enrollment aktif**. Tidak ada penutupan otomatis; penutupan relasi perlu workflow fase berikutnya. Tidak tersedia hard-delete lansia.
+
+Keluarga membuka `/keluarga/residents` untuk melihat daftar/detail miliknya sendiri, termasuk status nonaktif. Tidak tersedia tindakan perubahan. Akses lintas keluarga menghasilkan 404; perawat tetap hanya memakai akses Phase 2 dan tidak memperoleh akses data lansia melalui Phase 3A.
+
 ## Verifikasi
 
 ~~~powershell
 & $php tests/Support/run-postgres.php
 & $php artisan test --no-ansi
-& $php vendor/bin/pint --test app routes tests/Feature/Authentication tests/Feature/ExampleTest.php tests/Support/PostgresFeatureTestCase.php bootstrap/app.php config/inertia.php --no-ansi
+& $php vendor/bin/pint --test app routes tests/Feature/Authentication tests/Feature/Residents tests/Feature/ExampleTest.php tests/Support/PostgresFeatureTestCase.php bootstrap/app.php config/inertia.php --no-ansi
 npm.cmd run build
 git diff --check
 ~~~
@@ -68,6 +80,6 @@ Runner PostgreSQL membuat database acak miliknya sendiri, memeriksa identitas/OI
 
 Tes Laravel umum memakai SQLite in-memory; kasus PostgreSQL sengaja skipped di sana dan harus diverifikasi melalui runner. Jangan menggunakan migrate:fresh, db:wipe, atau rollback pada database pengembangan.
 
-Lihat [laporan implementasi](SILANSIA_IMPLEMENTATION_REPORT.md) untuk hasil aktual dan batas verifikasi, serta [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Panduan database mencatat hasil historis Phase 1; hasil lintas fase terbaru ada di laporan implementasi.
+Lihat [laporan Phase 3A](docs/report/SILANSIA_PHASE_3A_REPORT.md) untuk hasil aktual dan batas verifikasi, serta [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Laporan pribadi dalam docs/report/ dapat diabaikan oleh Git dan tidak selalu tersedia pada checkout lain. Laporan historis tetap dipertahankan.
 
-Phase 3, pengelolaan lansia/kamar/layanan, AI, insiden, kamera, notifikasi, dan billing belum diimplementasikan. Kelanjutan memerlukan persetujuan terpisah.
+Phase 3B dan seterusnya belum diimplementasikan: pengelolaan kamar/layanan, penempatan, enrollment, AI, insiden, kamera, notifikasi, dan billing menunggu persetujuan terpisah.
