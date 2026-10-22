@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\ResidentController as AdminResidentController;
+use App\Http\Controllers\Admin\RoomController;
+use App\Http\Controllers\Admin\ServiceClassController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Family\ResidentController as FamilyResidentController;
 use App\Http\Controllers\HomeController;
@@ -19,6 +21,20 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::post('/logout', [SessionController::class, 'destroy'])->name('logout');
 
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
+        Route::get('/service-classes', [ServiceClassController::class, 'index'])->name('service-classes.index');
+        Route::get('/service-classes/{serviceClass}', [ServiceClassController::class, 'show'])->name('service-classes.show');
+        Route::get('/service-classes/{serviceClass}/edit', [ServiceClassController::class, 'edit'])->name('service-classes.edit');
+        Route::patch('/service-classes/{serviceClass}', [ServiceClassController::class, 'update'])->name('service-classes.update');
+        Route::post('/service-classes/{serviceClass}/activate', [ServiceClassController::class, 'activate'])->name('service-classes.activate');
+        Route::post('/service-classes/{serviceClass}/deactivate', [ServiceClassController::class, 'deactivate'])->name('service-classes.deactivate');
+        Route::get('/rooms', [RoomController::class, 'index'])->name('rooms.index');
+        Route::get('/rooms/create', [RoomController::class, 'create'])->name('rooms.create');
+        Route::post('/rooms', [RoomController::class, 'store'])->name('rooms.store');
+        Route::get('/rooms/{room}', [RoomController::class, 'show'])->name('rooms.show');
+        Route::get('/rooms/{room}/edit', [RoomController::class, 'edit'])->name('rooms.edit');
+        Route::patch('/rooms/{room}', [RoomController::class, 'update'])->name('rooms.update');
+        Route::post('/rooms/{room}/activate', [RoomController::class, 'activate'])->name('rooms.activate');
+        Route::post('/rooms/{room}/deactivate', [RoomController::class, 'deactivate'])->name('rooms.deactivate');
         Route::get('/family-options', [AdminResidentController::class, 'familyOptions'])->name('family-options');
         Route::get('/residents', [AdminResidentController::class, 'index'])->name('residents.index');
         Route::get('/residents/create', [AdminResidentController::class, 'create'])->name('residents.create');

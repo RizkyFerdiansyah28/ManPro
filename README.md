@@ -1,6 +1,6 @@
 # Silansia
 
-Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, serta pengelolaan lansia dan hubungan keluarga Phase 3A.
+Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, pengelolaan lansia dan hubungan keluarga Phase 3A, serta pengelolaan kelas layanan dan kamar Phase 3B.
 
 Laravel 13, PostgreSQL, Inertia React, Tailwind CSS 4, dan Vite digunakan sesuai dependency yang sudah tersedia. Entitas aplikasi memakai UUID. Tidak ada registrasi publik.
 
@@ -24,7 +24,7 @@ npm.cmd run build
 npm.cmd run dev
 ~~~
 
-Migration UUID Phase 1 sengaja berhenti bila ada user legacy atau sesi terhubung yang belum dipetakan. Jangan menghapus data untuk melewati guard. Tidak ada migration baru untuk Phase 2 maupun Phase 3A.
+Migration UUID Phase 1 sengaja berhenti bila ada user legacy atau sesi terhubung yang belum dipetakan. Jangan menghapus data untuk melewati guard. Tidak ada migration baru untuk Phase 2, Phase 3A, maupun Phase 3B.
 
 ## Membuat Admin awal
 
@@ -66,12 +66,46 @@ Sesuai keputusan pengguna, **penonaktifan lansia ditolak jika masih ada masa tin
 
 Keluarga membuka `/keluarga/residents` untuk melihat daftar/detail miliknya sendiri, termasuk status nonaktif. Tidak tersedia tindakan perubahan. Akses lintas keluarga menghasilkan 404; perawat tetap hanya memakai akses Phase 2 dan tidak memperoleh akses data lansia melalui Phase 3A.
 
+## Kelas layanan dan kamar — Phase 3B
+
+Admin membuka `/admin/service-classes` untuk melihat tiga kelas resmi: VIP (`vip`, pribadi), Kelas 2 (`class_2`, bersama), dan Kelas 3 (`class_3`, bersama). Nama dan tarif bulanan dapat diedit. Tarif boleh kosong, atau angka nonnegatif dengan maksimal 12 digit sebelum titik dan 2 digit desimal. Perubahan tarif hanya berlaku pada konfigurasi kelas, tanpa mengubah snapshot enrollment, invoice, atau pembayaran. Kode, jenis kamar, dan manfaat tidak dapat diubah melalui web; konfigurasi yang menyimpang dari aturan resmi memerlukan pemeriksaan operator.
+
+Matriks manfaat final yang disetujui 22 Oktober 2026:
+
+| Manfaat | VIP | Kelas 2 | Kelas 3 |
+| --- | --- | --- | --- |
+| Kamar privat | Ya | Tidak | Tidak |
+| Monitoring AI oleh petugas | Ya | Ya | Ya |
+| Notifikasi darurat instan ke keluarga setelah verifikasi | Ya | Ya | Ya |
+| Riwayat insiden terverifikasi | Ya | Ya | Ya |
+| Rekap gait bulanan | Ya | Ya | Ya |
+| Rekap gait mingguan | Ya | Ya | Tidak |
+| Laporan gait harian | Ya | Tidak | Tidak |
+| CCTV live untuk keluarga | Ya | Tidak | Tidak |
+
+Monitoring AI dan alert petugas merupakan aturan keselamatan global dan tidak bergantung pada kelas maupun pembayaran. Matriks ini menggantikan aturan manfaat lama, termasuk ketentuan lama yang mengecualikan notifikasi instan bagi Kelas 3. Matriks tidak berarti integrasi AI/notifikasi/CCTV sudah berjalan.
+
+Seeder membuat kelas yang belum ada menggunakan matriks final, tetapi **tidak menyinkronkan baris existing**. Menjalankan seeder ulang tidak memperbaiki flag lama. Halaman manfaat membedakan matriks final dari konfigurasi tersimpan yang belum sesuai. Guard canonical tetap menolak mutasi yang memerlukan konfigurasi sesuai sampai sinkronisasi data disetujui dan dilaksanakan. Tidak ada sinkronisasi otomatis pada startup, request, migration, atau seeder. Lihat [laporan revisi manfaat](docs/report/SILANSIA_PHASE_3B_BENEFIT_REVISION_REPORT.md) untuk selisih data dan langkah sinkronisasi yang menjaga nama, harga, UUID, status, serta riwayat.
+
+Admin membuka `/admin/rooms` untuk mencari kode/nama kamar, memfilter kelas/status, menambah kamar, dan mengedit informasi. Daftar menampilkan 15 kamar per halaman dan jumlah penghuni dari stay dengan `ended_at IS NULL`. Kamar baru aktif dan harus memakai kelas aktif. Kode tetap unik mengikuti constraint PostgreSQL yang sudah ada; VIP wajib kapasitas tepat 1, sedangkan kamar bersama memiliki kapasitas positif. Batas 2147483647 adalah batas teknis kolom integer, bukan batas operasional yang dianjurkan.
+
+Sesuai keputusan pengguna:
+
+- Penonaktifan kelas ditolak jika terdapat kamar aktif, stay aktif pada kamarnya, enrollment aktif, atau kamera tertaut pada kamarnya, termasuk kamera nonaktif.
+- Perubahan kelas kamar hanya diizinkan jika kamar belum pernah memiliki stay dan tidak memiliki kamera. Kelas tujuan harus aktif dan perubahan dikonfirmasi. Form usang ditolak jika referensi kelas saat ini sudah berubah.
+- Penonaktifan kamar ditolak selama terdapat stay aktif atau kamera tertaut. Kamar dengan hanya stay yang sudah ditutup dapat dinonaktifkan.
+- Edit nama/kode/kapasitas dalam kelas yang sama tetap diizinkan bila aman, termasuk mempertahankan kelas saat ini yang nonaktif. Kapasitas tidak boleh kurang dari jumlah penghuni aktif. Aktivasi kamar memerlukan kelas aktif.
+
+Aktivasi/penonaktifan membutuhkan konfirmasi dan tidak mengubah dependensi secara otomatis. Kelas dan kamar tidak memiliki tindakan hard-delete. Perawat maupun keluarga tidak mendapat akses pengelolaan ini. UI manfaat hanya menampilkan konfigurasi; CCTV, laporan gait, notifikasi, dan billing belum diimplementasikan.
+
+Mutasi memakai transaksi serta lock berurutan pada actor, kelas (urut UUID jika lebih dari satu), lalu kamar. Workflow penempatan/enrollment/kamera pada fase mendatang harus mengikuti protokol lock dan memeriksa status/kapasitas ulang; Phase 3B tidak menyediakan workflow tersebut.
+
 ## Verifikasi
 
 ~~~powershell
 & $php tests/Support/run-postgres.php
 & $php artisan test --no-ansi
-& $php vendor/bin/pint --test app routes tests/Feature/Authentication tests/Feature/Residents tests/Feature/ExampleTest.php tests/Support/PostgresFeatureTestCase.php bootstrap/app.php config/inertia.php --no-ansi
+& $php vendor/bin/pint --test app routes tests/Feature/Authentication tests/Feature/Residents tests/Feature/Facilities tests/Feature/ExampleTest.php tests/Support/PostgresFeatureTestCase.php tests/Support/FacilityFeatureTestCase.php bootstrap/app.php config/inertia.php --no-ansi
 npm.cmd run build
 git diff --check
 ~~~
@@ -80,6 +114,6 @@ Runner PostgreSQL membuat database acak miliknya sendiri, memeriksa identitas/OI
 
 Tes Laravel umum memakai SQLite in-memory; kasus PostgreSQL sengaja skipped di sana dan harus diverifikasi melalui runner. Jangan menggunakan migrate:fresh, db:wipe, atau rollback pada database pengembangan.
 
-Lihat [laporan Phase 3A](docs/report/SILANSIA_PHASE_3A_REPORT.md) untuk hasil aktual dan batas verifikasi, serta [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Laporan pribadi dalam docs/report/ dapat diabaikan oleh Git dan tidak selalu tersedia pada checkout lain. Laporan historis tetap dipertahankan.
+Lihat [laporan revisi manfaat Phase 3B](docs/report/SILANSIA_PHASE_3B_BENEFIT_REVISION_REPORT.md) untuk keputusan manfaat terbaru; [laporan Phase 3B awal](docs/report/SILANSIA_PHASE_3B_REPORT.md) dan [laporan Phase 3A](docs/report/SILANSIA_PHASE_3A_REPORT.md) dipertahankan sebagai riwayat. Ketentuan manfaat lama pada laporan historis digantikan matriks final di atas. Lihat juga [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Laporan pribadi dalam docs/report/ dapat diabaikan oleh Git dan tidak selalu tersedia pada checkout lain.
 
-Phase 3B dan seterusnya belum diimplementasikan: pengelolaan kamar/layanan, penempatan, enrollment, AI, insiden, kamera, notifikasi, dan billing menunggu persetujuan terpisah.
+Phase 3C dan seterusnya belum diimplementasikan: penempatan, enrollment, AI, insiden, kamera, notifikasi, dan billing menunggu persetujuan terpisah.

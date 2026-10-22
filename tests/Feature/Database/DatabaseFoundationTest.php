@@ -336,10 +336,12 @@ class DatabaseFoundationTest extends TestCase
         $class2 = ServiceClass::where('code', 'class_2')->firstOrFail();
         $this->assertFalse($class2->family_live_cctv);
         $this->assertTrue($class2->instant_verified_emergency);
-        $this->assertTrue($class2->daily_gait_report);
+        $this->assertFalse($class2->daily_gait_report);
+        $this->assertTrue($class2->weekly_gait_report);
+        $this->assertTrue($class2->monthly_gait_report);
         $class3 = ServiceClass::where('code', 'class_3')->firstOrFail();
-        $this->assertFalse($class3->instant_verified_emergency);
-        $this->assertTrue($class3->weekly_gait_report);
+        $this->assertTrue($class3->instant_verified_emergency);
+        $this->assertFalse($class3->weekly_gait_report);
         $this->assertTrue($class3->monthly_gait_report);
         $this->assertTrue($class3->verified_incident_summary);
     }

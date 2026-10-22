@@ -34,6 +34,10 @@ Migration konversi hanya menerima tabel users kosong dan sesi tanpa user terhubu
 
 Seeder normal hanya membuat master VIP/kelas 2/kelas 3. Harga awal NULL; `firstOrCreate` mempertahankan UUID, tarif, dan konfigurasi yang sudah ada saat rerun. Tidak ada seed akun admin atau pasien. Pembuatan akun dan aktivasi menjadi cakupan tahap berikutnya.
 
+Revisi manfaat final Phase 3B (22 Oktober 2026) menggunakan kolom yang sudah ada, tanpa migration. Kelas baru memakai `CanonicalServiceClasses`: seluruh kelas mendapat notifikasi keluarga instan setelah verifikasi, riwayat insiden terverifikasi, dan rekap gait bulanan; VIP dan Kelas 2 mendapat rekap mingguan; hanya VIP mendapat laporan harian, kamar privat, dan CCTV keluarga. Monitoring AI/alert petugas berlaku global untuk semua kelas tanpa syarat pembayaran, bukan kolom entitlement per kelas.
+
+Seeder tetap **tidak mengubah konfigurasi existing**. Kelas yang masih menyimpan flag lama akan ditandai tidak sesuai canonical terbaru; mutasi terkait tetap ditolak. Sinkronisasi existing memerlukan persetujuan terpisah, transaksi, lock baris kelas menurut UUID, pemeriksaan ulang selisih yang disetujui, pembaruan flag benefit saja, dan pembandingan data terlindungi sebelum commit. Jangan menggunakan rollback, reset DB, atau `updateOrCreate` untuk memaksakan sinkronisasi. Nama, harga, UUID, kode, jenis/kapasitas kamar, status, stay/enrollment, serta riwayat tidak boleh ditimpa. Rincian: [laporan revisi manfaat Phase 3B](../report/SILANSIA_PHASE_3B_BENEFIT_REVISION_REPORT.md).
+
 Migration aditif `2026_10_21_000003_reject_nan_monetary_values.php` menolak numeric NaN pada harga kelas/enrollment dan nominal invoice/payment. Migration mengunci keempat tabel terhadap penulisan selama preflight/DDL, memeriksa seluruh kolom sebelum menambahkan CHECK, lalu membatalkan transaksi bila ada NaN lama. Data tidak diperbaiki/dihapus otomatis; koreksi nominal memerlukan keputusan terpisah. Constraint nonnegatif dan aturan nullable lama tetap dipertahankan. Tidak ada perubahan kolom atau migration historis.
 
 ## Pengujian database yang aman

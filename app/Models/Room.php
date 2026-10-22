@@ -34,6 +34,11 @@ class Room extends Model
         return $this->hasMany(ElderlyStay::class);
     }
 
+    public function activeStays(): HasMany
+    {
+        return $this->stays()->whereNull('ended_at');
+    }
+
     public function camera(): HasOne
     {
         return $this->hasOne(Camera::class);

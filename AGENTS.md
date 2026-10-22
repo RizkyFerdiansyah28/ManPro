@@ -91,10 +91,20 @@ Rules:
 
 ### 5.3 Service Benefits
 
-- VIP: private room, family live CCTV, instant **verified** emergency notification, daily gait report.
-- Class 2: shared room, instant **verified** emergency notification, daily gait report, no family live CCTV.
-- Class 3: shared room, weekly/monthly gait reports and verified incident summaries, no family live CCTV and no instant family emergency notification.
-- Caregiver safety alerts are independent of family notification entitlements.
+- Final user-approved matrix (22 October 2026):
+
+| Benefit | VIP | Class 2 | Class 3 |
+| --- | --- | --- | --- |
+| Private room | Yes | No | No |
+| Staff AI monitoring | Yes | Yes | Yes |
+| Instant family notification after emergency verification | Yes | Yes | Yes |
+| Verified incident history | Yes | Yes | Yes |
+| Monthly gait recap | Yes | Yes | Yes |
+| Weekly gait recap | Yes | Yes | No |
+| Daily gait report | Yes | No | No |
+| Family live CCTV | Yes | No | No |
+
+- Staff AI monitoring and caregiver safety alerts apply to all classes, independently of family benefits and billing status. These are global safety rules, not configurable per-class benefit flags.
 - Benefits must be checked per elderly resident using the applicable service enrollment and billing state.
 - Do not grant family live CCTV for shared rooms or infer permission merely from family ownership.
 - Do not invent service prices; use configured values or leave them unset as permitted by the schema.

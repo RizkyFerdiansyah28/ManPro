@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 #[Fillable(['code', 'name', 'room_type', 'monthly_price', 'family_live_cctv', 'instant_verified_emergency', 'daily_gait_report', 'weekly_gait_report', 'monthly_gait_report', 'verified_incident_summary', 'is_active'])]
 class ServiceClass extends Model
@@ -36,5 +37,15 @@ class ServiceClass extends Model
     public function serviceEnrollments(): HasMany
     {
         return $this->hasMany(ServiceEnrollment::class);
+    }
+
+    public function stays(): HasManyThrough
+    {
+        return $this->hasManyThrough(ElderlyStay::class, Room::class);
+    }
+
+    public function cameras(): HasManyThrough
+    {
+        return $this->hasManyThrough(Camera::class, Room::class);
     }
 }
