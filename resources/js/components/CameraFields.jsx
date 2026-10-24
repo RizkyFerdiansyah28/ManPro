@@ -1,0 +1,20 @@
+import FormField from './FormField';
+import CameraRoomSelector from './CameraRoomSelector';
+
+export default function CameraFields({ form, camera = null }) {
+    const sourceLocked = Boolean(camera?.is_active);
+    const typeLocked = sourceLocked || Boolean(camera?.detections_count);
+    const changingRoom = Boolean(camera && form.data.room_id !== camera.room.id);
+    return <>
+        <FormField id="name" label="Nama kamera" required maxLength={255} value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} error={form.errors.name} />
+        <CameraRoomSelector value={form.data.room_id} current={camera?.room} locked={Boolean(camera && (camera.is_active || camera.detections_count > 0))} onChange={(value) => form.setData({ ...form.data, room_id: value, ...(camera ? { confirm_reassignment: false } : {}) })} error={form.errors.room_id} />
+        {changingRoom && <label className="flex items-start gap-3 rounded-xl bg-amber-50 p-4 text-sm leading-6"><input type="checkbox" required checked={form.data.confirm_reassignment} onChange={(event) => form.setData('confirm_reassignment', event.target.checked)} className="mt-1.5 accent-emerald-800" /><span>Saya mengonfirmasi pemindahan kamera nonaktif tanpa riwayat ke kamar tujuan.</span></label>}
+        <div className="space-y-2"><label htmlFor="source_type" className="block text-sm font-semibold">Jenis sumber</label><select id="source_type" disabled={typeLocked} value={form.data.source_type} onChange={(event) => form.setData({ ...form.data, source_type: event.target.value, source_reference: '', ...(camera ? { source_action: event.target.value === 'webcam' ? 'clear' : 'replace' } : {}) })} className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"><option value="webcam">Webcam browser</option><option value="uploaded_video">Berkas video privat</option><option value="rtsp">Referensi RTSP</option></select>
+            {typeLocked && <p className="text-xs leading-6 text-slate-500">Jenis sumber dipertahankan selama kamera aktif atau sudah memiliki deteksi.</p>}
+        </div>
+        {camera && <div className="space-y-2"><label htmlFor="source_action" className="block text-sm font-semibold">Tindakan sumber privat</label><select id="source_action" disabled={sourceLocked} value={form.data.source_action} onChange={(event) => form.setData({ ...form.data, source_action: event.target.value, source_reference: '' })} className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"><option value="keep">Pertahankan sumber tersimpan</option>{form.data.source_type !== 'webcam' && <option value="replace">Ganti sumber secara eksplisit</option>}<option value="clear">Kosongkan sumber</option></select><p className="text-xs leading-6 text-slate-500">{camera.has_source_reference ? 'Sumber sudah diatur; nilainya tidak ditampilkan kembali.' : 'Sumber belum diatur.'} Nonaktifkan kamera sebelum mengganti atau mengosongkannya.</p></div>}
+        {form.data.source_type !== 'webcam' && (!camera || form.data.source_action === 'replace') && <FormField id="source_reference" label={form.data.source_type === 'rtsp' ? 'URL sumber privat baru' : 'Referensi berkas privat baru'} type="password" autoComplete="new-password" spellCheck={false} maxLength={4096} value={form.data.source_reference} onChange={(event) => form.setData('source_reference', event.target.value)} error={form.errors.source_reference} hint={form.data.source_type === 'rtsp' ? 'Hanya rtsp/rtsps. Disimpan terenkripsi tanpa koneksi atau uji jaringan. Boleh kosong saat pendaftaran nonaktif.' : 'Path relatif file yang sudah ada pada storage privat, memakai garis miring /. Tidak ada unggah atau pemutaran video.'} />}
+        {form.data.source_type === 'webcam' && <p className="text-xs leading-6 text-slate-500">Webcam tidak menggunakan referensi sumber. Halaman ini tidak meminta akses webcam atau merekam video.</p>}
+        {Object.values(form.errors).length > 0 && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{Object.values(form.errors).join(' ')}</p>}
+    </>;
+}

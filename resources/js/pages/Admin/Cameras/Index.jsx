@@ -1,0 +1,19 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+import OperationPagination from '../../../components/OperationPagination';
+
+const types = { webcam: 'Webcam browser', uploaded_video: 'Berkas privat', rtsp: 'Referensi RTSP' };
+export default function Index({ cameras, filters }) {
+    const form = useForm({ search: filters.search ?? '', status: filters.status ?? '', room_id: filters.room_id ?? '' });
+    function search(event) { event.preventDefault(); form.get('/admin/cameras', { preserveState: true, replace: true }); }
+    return <AppLayout>
+        <Head title="Kelola kamera · Silansia" />
+        <div className="flex flex-wrap items-end justify-between gap-5"><div><h1 className="text-3xl font-bold">Kelola kamera</h1><p className="mt-3 text-sm text-slate-500">Konfigurasi administrasi kamera per kamar. Status aktif bukan status konektivitas.</p></div><Link href="/admin/cameras/create" className="rounded-xl bg-emerald-800 px-5 py-3 text-sm font-semibold text-white">+ Daftarkan kamera</Link></div>
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6">
+            <form onSubmit={search} className="mb-6 flex flex-wrap items-end gap-4"><div className="grow"><label htmlFor="camera-search" className="mb-2 block text-sm font-semibold">Cari nama kamera atau kode/nama kamar</label><input id="camera-search" type="search" maxLength={100} value={form.data.search} onChange={(event) => form.setData('search', event.target.value)} className="w-full rounded-xl border border-slate-300 p-3 text-sm" /></div><div><label htmlFor="camera-status" className="mb-2 block text-sm font-semibold">Status administrasi</label><select id="camera-status" value={form.data.status} onChange={(event) => form.setData('status', event.target.value)} className="rounded-xl border border-slate-300 bg-white p-3 text-sm"><option value="">Semua</option><option value="active">Aktif</option><option value="inactive">Nonaktif</option></select></div><button disabled={form.processing} className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold">{form.processing ? 'Mencari…' : 'Terapkan'}</button>{form.data.room_id && <button type="button" onClick={() => { form.setData('room_id', ''); }} className="text-xs text-emerald-800">Hapus filter kamar lalu terapkan</button>}</form>
+            {Object.values(form.errors).length > 0 && <p role="alert" className="mb-5 text-sm text-red-700">{Object.values(form.errors).join(' ')}</p>}
+            {cameras.data.length ? <div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="sr-only">Daftar konfigurasi kamera</caption><thead className="text-xs text-slate-500"><tr><th scope="col" className="py-4 pr-6">Kamera</th><th scope="col" className="pr-6">Kamar / kelas</th><th scope="col" className="pr-6">Status</th><th scope="col">Tindakan</th></tr></thead><tbody className="divide-y divide-slate-100">{cameras.data.map((camera) => <tr key={camera.id}><td className="py-5 pr-6"><p className="font-semibold">{camera.name}</p><p className="mt-1 text-xs text-slate-500">{types[camera.source_type]}</p></td><td className="pr-6">{camera.room.code} · {camera.room.name}<p className="mt-1 text-xs text-slate-500">{camera.room.service_class.name}</p></td><td className="pr-6"><span className={`rounded-full px-3 py-1 text-xs ${camera.is_active ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}>{camera.is_active ? 'Aktif administrasi' : 'Nonaktif'}</span></td><td><Link href={`/admin/cameras/${camera.id}`} className="font-semibold text-emerald-800 hover:underline">Detail</Link></td></tr>)}</tbody></table></div> : <p className="py-14 text-center text-sm text-slate-500">Belum ada kamera yang sesuai pencarian.</p>}
+            <OperationPagination page={cameras} label="daftar kamera" />
+        </section>
+    </AppLayout>;
+}

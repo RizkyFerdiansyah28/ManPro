@@ -26,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->appendToPriorityList(StartSession::class, EnsureActiveAccount::class);
         $middleware->alias(['role' => RequireRole::class]);
+        $middleware->trimStrings(except: ['source_reference']);
         $middleware->redirectGuestsTo(fn () => route('login'));
         $middleware->redirectUsersTo(fn (Request $request) => route($request->user()->homeRoute()));
     })
@@ -33,7 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
-        $exceptions->dontFlash(['current_password', 'password', 'password_confirmation']);
+        $exceptions->dontFlash(['current_password', 'password', 'password_confirmation', 'source_reference']);
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             $status = $response->getStatusCode();
             if (($request->expectsJson() || $request->is('api/*')) && in_array($status, [500, 503], true)) {

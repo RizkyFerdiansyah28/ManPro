@@ -1,6 +1,6 @@
 # Silansia
 
-Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, pengelolaan lansia dan hubungan keluarga Phase 3A, pengelolaan kelas layanan dan kamar Phase 3B, serta masa tinggal dan enrollment Phase 3C.
+Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, pengelolaan lansia dan hubungan keluarga Phase 3A, kelas layanan dan kamar Phase 3B, masa tinggal dan enrollment Phase 3C, serta konfigurasi kamera Admin Phase 4A.
 
 Laravel 13, PostgreSQL, Inertia React, Tailwind CSS 4, dan Vite digunakan sesuai dependency yang sudah tersedia. Entitas aplikasi memakai UUID. Tidak ada registrasi publik.
 
@@ -24,7 +24,7 @@ npm.cmd run build
 npm.cmd run dev
 ~~~
 
-Migration UUID Phase 1 sengaja berhenti bila ada user legacy atau sesi terhubung yang belum dipetakan. Jangan menghapus data untuk melewati guard. Tidak ada migration baru untuk Phase 2 maupun Phase 3A–3C.
+Migration UUID Phase 1 sengaja berhenti bila ada user legacy atau sesi terhubung yang belum dipetakan. Jangan menghapus data untuk melewati guard. Tidak ada migration baru untuk Phase 2, Phase 3A–3C, atau Phase 4A.
 
 ## Membuat Admin awal
 
@@ -120,12 +120,32 @@ Sesuai persetujuan pengguna, tidak ada migration atau trigger baru. Integritas l
 
 Tes konkurensi memakai worker terpisah yang hanya menerima konteks database acak milik runner. Jangan menjalankan `tests/Support/operations-worker.php` secara langsung. Fixture committed serta cleanup di tes tersebut dibatasi oleh guard dan UUID fixture pada DB sementara; tidak memakai database pengembangan.
 
+## Konfigurasi kamera — Phase 4A
+
+Admin membuka `/admin/cameras` untuk mencari nama kamera atau kode/nama kamar, memfilter status, melihat detail, mendaftarkan, dan mengedit kamera. Daftar berisi 15 record per halaman. Kamera memakai UUID dan satu kamera maksimum per kamar, termasuk kamera nonaktif. Nama kamera tidak diberi aturan unik baru yang tidak ada pada schema.
+
+Kamera baru berstatus **nonaktif**. Aktivasi/penonaktifan adalah tindakan terpisah dengan konfirmasi. Status ini adalah konfigurasi administrasi, bukan bukti kamera online, tersambung, atau menghasilkan deteksi. Tidak ada koneksi jaringan kamera, streaming, playback, webcam capture, upload video, snapshot endpoint, atau AI ingestion/inference dalam Phase 4A.
+
+Kebijakan yang disetujui pengguna:
+
+- Penetapan kamera baru dan pemindahan memerlukan kamar aktif tanpa kamera; kamar tidak diaktifkan otomatis. Aktivasi kamera memerlukan kamar dan kelas yang aktif. Semua kelas dapat dikelola, tanpa memeriksa hak CCTV keluarga atau pembayaran.
+- Pemindahan hanya untuk kamera nonaktif yang belum pernah memiliki deteksi AI, dengan konfirmasi eksplisit. Kamera historis tidak dapat dipindah. Asosiasi existing pada kamar nonaktif tetap dipertahankan; metadata yang aman dapat diperbarui.
+- Jenis sumber tidak dapat diubah setelah ada deteksi. Penggantian/pengosongan referensi sumber harus eksplisit dan kamera harus nonaktif. Nama dapat diedit tanpa mengubah sumber atau riwayat.
+- Webcam tidak memakai referensi. `uploaded_video` hanya menyimpan path relatif file yang sudah ada di disk `local` privat, tanpa upload/penyajian file. Referensi absolut, URL, traversal, dan lokasi di luar root privat ditolak. Ini bukan verifikasi codec/playback video.
+- `rtsp` hanya menerima URL `rtsp`/`rtsps` sebagai konfigurasi terenkripsi, tanpa DNS lookup atau koneksi kamera. Sumber boleh belum diatur pada kamera nonaktif; aktivasi RTSP/berkas memerlukan referensi yang valid.
+
+Referensi memakai encrypted cast dan hidden attribute existing. Resource hanya mengirim indikator sumber sudah diatur, tanpa plaintext, ciphertext, host, credential, atau path tersimpan. Form edit menawarkan pertahankan/ganti/kosongkan tanpa mengisi ulang nilai lama. Sumber baru ditampilkan sebagai input terlindung, tidak disalin ke old input saat validasi gagal, dan dikosongkan pada state form setelah respons. Token versi konfigurasi menolak edit usang, termasuk perubahan pada detik yang sama.
+
+Penonaktifan kamera tidak melepas kamar atau riwayat. Guard Phase 3B tetap menolak penonaktifan kamar/kelas selama kamera tertaut, termasuk kamera nonaktif. Tidak ada hard-delete, detach, atau workflow pensiun kamera historis pada fase ini. Kelas 2/3 tidak mendapat akses CCTV keluarga; Phase 4A tidak memberi akses stream kepada keluarga mana pun.
+
+Mutasi menggunakan PostgreSQL READ COMMITTED dengan urutan actor → kelas menurut UUID → kamar menurut UUID → kamera. Integrasi AI mendatang tetap harus memvalidasi status/asosiasi kamera dan waktu event dengan protokol lock yang konsisten; konfigurasi ini belum merupakan kontrak ingestion. Jangan menjalankan worker tes `tests/Support/camera-worker.php` secara langsung; worker hanya menerima context DB acak milik runner.
+
 ## Verifikasi
 
 ~~~powershell
 & $php tests/Support/run-postgres.php
 & $php artisan test --no-ansi
-& $php vendor/bin/pint --test app routes tests/Feature tests/Support/FacilityFeatureTestCase.php tests/Support/PostgresFeatureTestCase.php tests/Support/operations-worker.php bootstrap/app.php config/inertia.php --no-ansi
+& $php vendor/bin/pint --test app routes tests/Feature tests/Support/FacilityFeatureTestCase.php tests/Support/CameraFeatureTestCase.php tests/Support/PostgresFeatureTestCase.php tests/Support/operations-worker.php tests/Support/camera-worker.php bootstrap/app.php config/inertia.php --no-ansi
 npm.cmd run build
 git diff --check
 ~~~
@@ -134,6 +154,6 @@ Runner PostgreSQL membuat database acak miliknya sendiri, memeriksa identitas/OI
 
 Tes Laravel umum memakai SQLite in-memory; kasus PostgreSQL sengaja skipped di sana dan harus diverifikasi melalui runner. Jangan menggunakan migrate:fresh, db:wipe, atau rollback pada database pengembangan.
 
-Lihat [laporan Phase 3C](docs/report/SILANSIA_PHASE_3C_REPORT.md) untuk hasil implementasi/verifikasi operasional terbaru, serta [laporan revisi manfaat Phase 3B](docs/report/SILANSIA_PHASE_3B_BENEFIT_REVISION_REPORT.md) dan [hasil sinkronisasi manfaat](docs/report/SILANSIA_PHASE_3B_BENEFIT_SYNC_FINAL_REPORT.md). [Laporan Phase 3B awal](docs/report/SILANSIA_PHASE_3B_REPORT.md) dan [laporan Phase 3A](docs/report/SILANSIA_PHASE_3A_REPORT.md) dipertahankan sebagai riwayat. Ketentuan manfaat lama pada laporan historis digantikan matriks final di atas. Lihat juga [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Laporan pribadi dalam docs/report/ dapat diabaikan oleh Git dan tidak selalu tersedia pada checkout lain.
+Lihat [laporan Phase 4A](docs/report/SILANSIA_PHASE_4A_REPORT.md) untuk konfigurasi kamera terbaru, [laporan Phase 3C](docs/report/SILANSIA_PHASE_3C_REPORT.md) untuk workflow operasional, serta [laporan revisi manfaat Phase 3B](docs/report/SILANSIA_PHASE_3B_BENEFIT_REVISION_REPORT.md) dan [hasil sinkronisasi manfaat](docs/report/SILANSIA_PHASE_3B_BENEFIT_SYNC_FINAL_REPORT.md). [Laporan Phase 3B awal](docs/report/SILANSIA_PHASE_3B_REPORT.md) dan [laporan Phase 3A](docs/report/SILANSIA_PHASE_3A_REPORT.md) dipertahankan sebagai riwayat. Ketentuan manfaat lama pada laporan historis digantikan matriks final di atas. Lihat juga [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Laporan pribadi dalam docs/report/ dapat diabaikan oleh Git dan tidak selalu tersedia pada checkout lain.
 
-Fase berikutnya menunggu persetujuan terpisah: AI, insiden, kamera/CCTV, notifikasi, dan billing belum diimplementasikan. Tidak ada otomatisasi transfer penghuni.
+Phase 4B dan seterusnya menunggu persetujuan terpisah: AI, insiden, CCTV/streaming, notifikasi, dan billing belum diimplementasikan. Tidak ada otomatisasi transfer penghuni.

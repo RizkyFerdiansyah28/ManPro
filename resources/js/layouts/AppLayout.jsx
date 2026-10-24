@@ -20,6 +20,7 @@ export default function AppLayout({ children }) {
                         {user.role === 'admin' && <Link href="/admin/residents" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Kelola lansia</Link>}
                         {user.role === 'admin' && <Link href="/admin/service-classes" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Kelas layanan</Link>}
                         {user.role === 'admin' && <Link href="/admin/rooms" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Kamar</Link>}
+                        {user.role === 'admin' && <Link href="/admin/cameras" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Kamera</Link>}
                         {user.role === 'keluarga' && <Link href="/keluarga/residents" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Lansia keluarga</Link>}
                     </nav>
                     <div className="flex items-center gap-4">

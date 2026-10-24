@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountController;
+use App\Http\Controllers\Admin\CameraController;
 use App\Http\Controllers\Admin\ResidentController as AdminResidentController;
 use App\Http\Controllers\Admin\ResidentOperationsController;
 use App\Http\Controllers\Admin\RoomController;
@@ -22,6 +23,15 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::post('/logout', [SessionController::class, 'destroy'])->name('logout');
 
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
+        Route::get('/camera-room-options', [CameraController::class, 'roomOptions'])->name('camera-room-options');
+        Route::get('/cameras', [CameraController::class, 'index'])->name('cameras.index');
+        Route::get('/cameras/create', [CameraController::class, 'create'])->name('cameras.create');
+        Route::post('/cameras', [CameraController::class, 'store'])->name('cameras.store');
+        Route::get('/cameras/{camera}', [CameraController::class, 'show'])->name('cameras.show');
+        Route::get('/cameras/{camera}/edit', [CameraController::class, 'edit'])->name('cameras.edit');
+        Route::patch('/cameras/{camera}', [CameraController::class, 'update'])->name('cameras.update');
+        Route::post('/cameras/{camera}/activate', [CameraController::class, 'activate'])->name('cameras.activate');
+        Route::post('/cameras/{camera}/deactivate', [CameraController::class, 'deactivate'])->name('cameras.deactivate');
         Route::get('/service-classes', [ServiceClassController::class, 'index'])->name('service-classes.index');
         Route::get('/service-classes/{serviceClass}', [ServiceClassController::class, 'show'])->name('service-classes.show');
         Route::get('/service-classes/{serviceClass}/edit', [ServiceClassController::class, 'edit'])->name('service-classes.edit');

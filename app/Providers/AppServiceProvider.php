@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Camera;
 use App\Models\Elderly;
 use App\Models\ElderlyStay;
 use App\Models\Room;
 use App\Models\ServiceClass;
 use App\Models\ServiceEnrollment;
 use App\Models\User;
+use App\Policies\CameraPolicy;
 use App\Policies\ElderlyPolicy;
 use App\Policies\ElderlyStayPolicy;
 use App\Policies\RoomPolicy;
@@ -36,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(Camera::class, CameraPolicy::class);
         Gate::policy(Elderly::class, ElderlyPolicy::class);
         Gate::policy(ElderlyStay::class, ElderlyStayPolicy::class);
         Gate::policy(ServiceEnrollment::class, ServiceEnrollmentPolicy::class);
