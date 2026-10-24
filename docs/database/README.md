@@ -81,6 +81,8 @@ Jangan memakai `is_active` users/camera atau status tagihan sebagai mekanisme me
 
 Terapkan protokol transaksi/locking yang dijelaskan pada ERD sebelum membuat UI penempatan, enrollment, ingestion, atau pembayaran. FK tidak memeriksa peran pengguna, kesesuaian kelas, okupansi, maupun entitlement.
 
+Phase 3C menerapkan layanan penempatan/enrollment tanpa migration baru sesuai persetujuan pengguna. Enrollment harus ada sebelum stay, boleh aktif tanpa stay, dan tidak dapat ditutup selama stay aktif. Enrollment baru menolak tarif kelas NULL dan menyimpan tarif kelas yang dikunci sebagai snapshot desimal. Penutupan stay/enrollment dilakukan terpisah tanpa mengubah riwayat harga/invoice/payment. Waktu operasi memakai waktu server, tanpa backdate/penjadwalan. Urutan lock: actor User → kelas menurut UUID → kamar → lansia → record operasional. Layanan mensyaratkan PostgreSQL READ COMMITTED dan menghitung ulang okupansi setelah lock. Unique partial indexes dan CHECK Phase 1 dipertahankan; operasi SQL langsung tetap harus mematuhi aturan layanan karena tidak ada trigger lintas tabel tambahan. Hasil aktual tersedia pada [laporan Phase 3C](../report/SILANSIA_PHASE_3C_REPORT.md).
+
 `source_reference` kamera dienkripsi melalui cast Eloquent dan disembunyikan saat serialisasi. `proof_path` pembayaran harus menunjuk storage privat; uploader dan validasi berkas belum dibuat. Catatan insiden, metadata AI, data notifikasi, dan catatan verifikasi disembunyikan saat serialisasi model terkait. Perlindungan ini perlu dilengkapi Policies, query scope, dan resources yang sesuai pada tahap berikut, terutama untuk relasi yang dimuat secara eksplisit.
 
 ## Kontrak AI sementara

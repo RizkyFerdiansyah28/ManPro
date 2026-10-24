@@ -8,6 +8,7 @@
             <directory>tests/Feature/Authentication</directory>
             <directory>tests/Feature/Residents</directory>
             <directory>tests/Feature/Facilities</directory>
+            <directory>tests/Feature/Operations</directory>
         </testsuite>
     </testsuites>
     <source><include><directory>app</directory></include></source>

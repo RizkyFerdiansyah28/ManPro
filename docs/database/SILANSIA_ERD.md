@@ -213,6 +213,8 @@ Phase 1 tidak menyediakan layanan mutasi operasional. Pada tahap layanan transak
 
 Aturan tersebut adalah pekerjaan tahap berikut, bukan jaminan dari constraint Phase 1. Tidak ada trigger tersembunyi yang menegakkannya.
 
+Perkembangan Phase 3C: sesuai keputusan pengguna, pengaman masa tinggal/enrollment diimplementasikan pada layanan transaksi tanpa perubahan schema. Enrollment mendahului stay, boleh tetap aktif tanpa stay, dan tidak boleh ditutup selama stay masih aktif. Kelas harus cocok dengan kamar, harga NULL ditolak saat pembuatan enrollment, dan snapshot tidak dihitung ulang. Urutan lock aplikasi adalah actor → kelas berurutan UUID → kamar → lansia → record operasional, dengan PostgreSQL READ COMMITTED. Penulisan waktu memakai waktu server; workflow tidak menerima backdate atau penjadwalan. Partial unique indexes melindungi maksimal satu record terbuka; seluruh aturan lintas tabel tersebut tetap bukan jaminan untuk SQL langsung yang melewati layanan.
+
 ## Infrastruktur dan migrasi legacy
 
 `password_reset_tokens`, `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`, dan `migrations` dipertahankan. PK sesi tetap string yang dihasilkan Laravel; hanya `sessions.user_id` menjadi UUID. Kolom timestamp users lama tetap timestamp tanpa timezone; semua tabel domain baru menggunakan timestamp dengan timezone.

@@ -12,6 +12,7 @@ use App\Http\Requests\Residents\UpdateResidentRequest;
 use App\Http\Resources\ResidentResource;
 use App\Models\Elderly;
 use App\Models\User;
+use App\Services\ResidentOperationsReadService;
 use App\Services\ResidentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -53,12 +54,13 @@ class ResidentController extends Controller
         return redirect()->route('admin.residents.show', $elderly)->with('status', 'Data lansia berhasil dibuat.');
     }
 
-    public function show(Request $request, Elderly $elderly): Response
+    public function show(Request $request, Elderly $elderly, ResidentOperationsReadService $operations): Response
     {
         Gate::authorize('view', $elderly);
         $elderly->load('family:id,name,email,is_active');
 
-        return Inertia::render('Admin/Residents/Show', ['resident' => (new ResidentResource($elderly))->resolve($request)]);
+        return Inertia::render('Admin/Residents/Show', ['resident' => (new ResidentResource($elderly))->resolve($request),
+            'operations' => $operations->summary($elderly, $request)]);
     }
 
     public function edit(Request $request, Elderly $elderly): Response

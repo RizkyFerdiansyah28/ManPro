@@ -63,6 +63,12 @@ class Elderly extends Model
         return $this->hasMany(ServiceEnrollment::class);
     }
 
+    // Nama relasi untuk scoped binding /enrollments/{enrollment}; schema tetap sama.
+    public function enrollments(): HasMany
+    {
+        return $this->serviceEnrollments();
+    }
+
     public function activeServiceEnrollment(): HasOne
     {
         return $this->hasOne(ServiceEnrollment::class)->whereNull('ended_at');

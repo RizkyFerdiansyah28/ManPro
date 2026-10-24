@@ -1,6 +1,6 @@
 # Silansia
 
-Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, pengelolaan lansia dan hubungan keluarga Phase 3A, serta pengelolaan kelas layanan dan kamar Phase 3B.
+Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, pengelolaan lansia dan hubungan keluarga Phase 3A, pengelolaan kelas layanan dan kamar Phase 3B, serta masa tinggal dan enrollment Phase 3C.
 
 Laravel 13, PostgreSQL, Inertia React, Tailwind CSS 4, dan Vite digunakan sesuai dependency yang sudah tersedia. Entitas aplikasi memakai UUID. Tidak ada registrasi publik.
 
@@ -24,7 +24,7 @@ npm.cmd run build
 npm.cmd run dev
 ~~~
 
-Migration UUID Phase 1 sengaja berhenti bila ada user legacy atau sesi terhubung yang belum dipetakan. Jangan menghapus data untuk melewati guard. Tidak ada migration baru untuk Phase 2, Phase 3A, maupun Phase 3B.
+Migration UUID Phase 1 sengaja berhenti bila ada user legacy atau sesi terhubung yang belum dipetakan. Jangan menghapus data untuk melewati guard. Tidak ada migration baru untuk Phase 2 maupun Phase 3A–3C.
 
 ## Membuat Admin awal
 
@@ -100,12 +100,32 @@ Aktivasi/penonaktifan membutuhkan konfirmasi dan tidak mengubah dependensi secar
 
 Mutasi memakai transaksi serta lock berurutan pada actor, kelas (urut UUID jika lebih dari satu), lalu kamar. Workflow penempatan/enrollment/kamera pada fase mendatang harus mengikuti protokol lock dan memeriksa status/kapasitas ulang; Phase 3B tidak menyediakan workflow tersebut.
 
+## Masa tinggal dan enrollment — Phase 3C
+
+Dari detail lansia Admin (`/admin/residents/{id}`), buka **Lihat riwayat masa tinggal dan enrollment**. Halaman `/admin/residents/{id}/operations` memuat status aktif dan riwayat masing-masing 15 record per halaman. Status kamar/kelas saat ini hanya ditambahkan pada halaman Admin; keluarga tidak mendapat akses operasional baru.
+
+Keputusan pengguna untuk Phase 3C:
+
+- Buat enrollment terlebih dahulu. Enrollment boleh aktif tanpa masa tinggal.
+- Enrollment baru membutuhkan kelas aktif dengan konfigurasi canonical final dan tarif yang sudah diatur. Tarif NULL ditolak; nilai nol yang sengaja dikonfigurasi tetap valid. Snapshot disalin dari tarif kelas yang dikunci saat transaksi, tanpa harga bebas dari form. Snapshot tidak berubah ketika tarif kelas kemudian diperbarui.
+- Mulai masa tinggal melalui pemilihan kamar aktif yang kelasnya sesuai enrollment aktif. Ketersediaan dalam UI berasal dari stay aktif, tetapi kapasitas diperiksa ulang setelah lock saat penyimpanan. Tidak ada transfer otomatis atau penggantian record aktif.
+- Tutup masa tinggal dengan konfirmasi; enrollment tetap aktif. Penutupan enrollment ditolak selama ada masa tinggal aktif. Tutup enrollment melalui tindakan terpisah setelah masa tinggal ditutup.
+- Lansia nonaktif tidak dapat memulai operasi baru. Penutupan tetap tersedia bagi Admin untuk menyelesaikan record lama meskipun entitas terkait sudah nonaktif; riwayat tidak dihapus.
+
+Waktu mulai/akhir memakai waktu server dengan presisi detik dan ditampilkan dalam WIB. Tidak ada input backdate atau penjadwalan. Waktu akhir harus lebih besar daripada waktu mulai; penutupan pada detik yang sama ditolak sampai waktu mulai terlewati. Riwayat dengan waktu akhir di masa depan memerlukan pemeriksaan operator sebelum memulai record baru.
+
+Tidak ada invoice, payment, perubahan kamera, integrasi AI, pengiriman notifikasi, atau pembatasan benefit berdasarkan pembayaran yang dibuat oleh workflow ini. Semua mutasi hanya tersedia bagi Admin aktif melalui autentikasi sesi, Policy, Form Request, CSRF, dan scoped binding lansia/record.
+
+Sesuai persetujuan pengguna, tidak ada migration atau trigger baru. Integritas lintas tabel ditegakkan melalui layanan transaksi PostgreSQL **READ COMMITTED**, dengan urutan actor → kelas menurut UUID → kamar → lansia → record operasional. Isolation level lain ditolak sebelum penulisan karena perhitungan okupansi setelah menunggu lock memerlukan snapshot statement terbaru. Partial unique index lama tetap melindungi duplikasi aktif. SQL langsung yang melewati layanan tidak memperoleh seluruh jaminan lintas tabel ini.
+
+Tes konkurensi memakai worker terpisah yang hanya menerima konteks database acak milik runner. Jangan menjalankan `tests/Support/operations-worker.php` secara langsung. Fixture committed serta cleanup di tes tersebut dibatasi oleh guard dan UUID fixture pada DB sementara; tidak memakai database pengembangan.
+
 ## Verifikasi
 
 ~~~powershell
 & $php tests/Support/run-postgres.php
 & $php artisan test --no-ansi
-& $php vendor/bin/pint --test app routes tests/Feature/Authentication tests/Feature/Residents tests/Feature/Facilities tests/Feature/ExampleTest.php tests/Support/PostgresFeatureTestCase.php tests/Support/FacilityFeatureTestCase.php bootstrap/app.php config/inertia.php --no-ansi
+& $php vendor/bin/pint --test app routes tests/Feature tests/Support/FacilityFeatureTestCase.php tests/Support/PostgresFeatureTestCase.php tests/Support/operations-worker.php bootstrap/app.php config/inertia.php --no-ansi
 npm.cmd run build
 git diff --check
 ~~~
@@ -114,6 +134,6 @@ Runner PostgreSQL membuat database acak miliknya sendiri, memeriksa identitas/OI
 
 Tes Laravel umum memakai SQLite in-memory; kasus PostgreSQL sengaja skipped di sana dan harus diverifikasi melalui runner. Jangan menggunakan migrate:fresh, db:wipe, atau rollback pada database pengembangan.
 
-Lihat [laporan revisi manfaat Phase 3B](docs/report/SILANSIA_PHASE_3B_BENEFIT_REVISION_REPORT.md) untuk keputusan manfaat terbaru; [laporan Phase 3B awal](docs/report/SILANSIA_PHASE_3B_REPORT.md) dan [laporan Phase 3A](docs/report/SILANSIA_PHASE_3A_REPORT.md) dipertahankan sebagai riwayat. Ketentuan manfaat lama pada laporan historis digantikan matriks final di atas. Lihat juga [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Laporan pribadi dalam docs/report/ dapat diabaikan oleh Git dan tidak selalu tersedia pada checkout lain.
+Lihat [laporan Phase 3C](docs/report/SILANSIA_PHASE_3C_REPORT.md) untuk hasil implementasi/verifikasi operasional terbaru, serta [laporan revisi manfaat Phase 3B](docs/report/SILANSIA_PHASE_3B_BENEFIT_REVISION_REPORT.md) dan [hasil sinkronisasi manfaat](docs/report/SILANSIA_PHASE_3B_BENEFIT_SYNC_FINAL_REPORT.md). [Laporan Phase 3B awal](docs/report/SILANSIA_PHASE_3B_REPORT.md) dan [laporan Phase 3A](docs/report/SILANSIA_PHASE_3A_REPORT.md) dipertahankan sebagai riwayat. Ketentuan manfaat lama pada laporan historis digantikan matriks final di atas. Lihat juga [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Laporan pribadi dalam docs/report/ dapat diabaikan oleh Git dan tidak selalu tersedia pada checkout lain.
 
-Phase 3C dan seterusnya belum diimplementasikan: penempatan, enrollment, AI, insiden, kamera, notifikasi, dan billing menunggu persetujuan terpisah.
+Fase berikutnya menunggu persetujuan terpisah: AI, insiden, kamera/CCTV, notifikasi, dan billing belum diimplementasikan. Tidak ada otomatisasi transfer penghuni.

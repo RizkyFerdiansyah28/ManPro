@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\ResidentController as AdminResidentController;
+use App\Http\Controllers\Admin\ResidentOperationsController;
 use App\Http\Controllers\Admin\RoomController;
 use App\Http\Controllers\Admin\ServiceClassController;
 use App\Http\Controllers\Auth\SessionController;
@@ -38,6 +39,15 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
         Route::get('/family-options', [AdminResidentController::class, 'familyOptions'])->name('family-options');
         Route::get('/residents', [AdminResidentController::class, 'index'])->name('residents.index');
         Route::get('/residents/create', [AdminResidentController::class, 'create'])->name('residents.create');
+        Route::prefix('residents/{elderly}')->name('residents.')->scopeBindings()->group(function () {
+            Route::get('/operations', [ResidentOperationsController::class, 'index'])->name('operations');
+            Route::get('/enrollments/create', [ResidentOperationsController::class, 'enrollmentForm'])->name('enrollments.create');
+            Route::post('/enrollments', [ResidentOperationsController::class, 'enroll'])->name('enrollments.store');
+            Route::get('/stays/create', [ResidentOperationsController::class, 'stayForm'])->name('stays.create');
+            Route::post('/stays', [ResidentOperationsController::class, 'start'])->name('stays.store');
+            Route::post('/stays/{stay}/close', [ResidentOperationsController::class, 'closeStay'])->name('stays.close');
+            Route::post('/enrollments/{enrollment}/close', [ResidentOperationsController::class, 'closeEnrollment'])->name('enrollments.close');
+        });
         Route::post('/residents', [AdminResidentController::class, 'store'])->name('residents.store');
         Route::get('/residents/{elderly}', [AdminResidentController::class, 'show'])->name('residents.show');
         Route::get('/residents/{elderly}/edit', [AdminResidentController::class, 'edit'])->name('residents.edit');
