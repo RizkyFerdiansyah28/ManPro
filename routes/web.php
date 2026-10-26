@@ -9,6 +9,9 @@ use App\Http\Controllers\Admin\ServiceClassController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Family\ResidentController as FamilyResidentController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Monitoring\MonitoringDashboardController;
+use App\Http\Controllers\Monitoring\MonitoringRecordsController;
+use App\Http\Controllers\Monitoring\OpenIncidentController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'redirect'])->name('home');
@@ -19,6 +22,10 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware(['auth', 'auth.session'])->group(function () {
+    Route::middleware('can:viewMonitoring')->prefix('monitoring')->name('monitoring.')->group(function () {
+        Route::get('/records', MonitoringRecordsController::class)->name('records');
+        Route::get('/open-incidents', OpenIncidentController::class)->name('open-incidents');
+    });
     Route::get('/dashboard', [HomeController::class, 'redirect'])->name('dashboard');
     Route::post('/logout', [SessionController::class, 'destroy'])->name('logout');
 
@@ -65,7 +72,7 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
         Route::post('/residents/{elderly}/family', [AdminResidentController::class, 'reassignFamily'])->name('residents.family');
         Route::post('/residents/{elderly}/activate', [AdminResidentController::class, 'activate'])->name('residents.activate');
         Route::post('/residents/{elderly}/deactivate', [AdminResidentController::class, 'deactivate'])->name('residents.deactivate');
-        Route::get('/', [HomeController::class, 'show'])->name('home');
+        Route::get('/', [MonitoringDashboardController::class, 'admin'])->middleware('can:viewMonitoring')->name('home');
         Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
         Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
         Route::post('/accounts/perawat', [AccountController::class, 'storeCaregiver'])->name('accounts.store-perawat');
@@ -77,7 +84,7 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
             ->middleware('throttle:admin-password-reset')->name('accounts.password.update');
     });
 
-    Route::get('/perawat', [HomeController::class, 'show'])->middleware('role:perawat')->name('perawat.home');
+    Route::get('/perawat', [MonitoringDashboardController::class, 'caregiver'])->middleware(['role:perawat', 'can:viewMonitoring'])->name('perawat.home');
     Route::get('/keluarga', [HomeController::class, 'show'])->middleware('role:keluarga')->name('keluarga.home');
     Route::prefix('keluarga/residents')->name('keluarga.residents.')->middleware('role:keluarga')->group(function () {
         Route::get('/', [FamilyResidentController::class, 'index'])->name('index');

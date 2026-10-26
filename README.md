@@ -1,6 +1,6 @@
 # Silansia
 
-Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, pengelolaan lansia dan hubungan keluarga Phase 3A, kelas layanan dan kamar Phase 3B, masa tinggal dan enrollment Phase 3C, konfigurasi kamera Admin Phase 4A, serta gateway hasil AI Phase 4B yang default nonaktif.
+Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, pengelolaan lansia dan hubungan keluarga Phase 3A, kelas layanan dan kamar Phase 3B, masa tinggal dan enrollment Phase 3C, konfigurasi kamera Admin Phase 4A, gateway hasil AI Phase 4B yang default nonaktif, serta monitoring baca Admin/Perawat Phase 5.
 
 Laravel 13, PostgreSQL, Inertia React, Tailwind CSS 4, dan Vite digunakan sesuai dependency yang sudah tersedia. Entitas aplikasi memakai UUID. Tidak ada registrasi publik.
 
@@ -150,6 +150,22 @@ Event baru maksimal terlambat 24 jam, tidak di masa depan, dan berada dalam peri
 
 Lihat [kontrak API v1](docs/api/SILANSIA_AI_GATEWAY_V1.md), [audit yang disetujui](docs/report/SILANSIA_PHASE_4B_AUDIT_REPORT.md), dan [laporan implementasi Phase 4B](docs/report/SILANSIA_PHASE_4B_REPORT.md). CLI `silansia:ai-gateway-manifest --source=<UUID>` hanya membaca ID periode/kamera yang diizinkan tanpa secret, URL, atau penghuni. Pengaktifan gateway dan integrasi layanan AI nyata memerlukan konfigurasi serta persetujuan tersendiri.
 
+## Monitoring petugas — Phase 5
+
+Beranda `/admin` dan `/perawat` menampilkan statistik dan rekaman monitoring tersimpan. Hanya Admin/Perawat aktif yang boleh membuka `/monitoring/records` dan `/monitoring/open-incidents`. Perawat membaca monitoring seluruh kamar dengan identitas minimum yang sah, tanpa akses profil lengkap lansia, keluarga, billing, atau konfigurasi kamera Admin. Hak Keluarga tidak diperluas.
+
+Filter rekaman berdasarkan `occurred_at`: 24 jam terakhir, 7 hari, 30 hari, atau tanggal WIB maksimal 90 hari inklusif. Waktu kejadian dan diterima ditampilkan terpisah dalam WIB (UTC+07:00). Pencarian kamera/kamar historis, jenis event, status/verifikasi, kategori gait, kelas, konteks legacy, identitas, dan pagination 15/30/50 diproses server. Hasil dapat berubah antarhalaman karena data baru; bukan export snapshot yang dibekukan.
+
+Insiden terbuka mencakup `pending` dan `acknowledged` **seluruh waktu**, termasuk insiden lama di luar filter dashboard, dengan urutan kejadian tertua. Pending bukan fall terverifikasi; acknowledged belum selesai. `verified_at`/`verified_by` adalah atribut terpisah, bukan status baru. Tidak ada tombol acknowledge, verifikasi, false alarm, penyelesaian, notifikasi, atau pembaruan otomatis pada Phase 5. Gunakan tombol **Muat ulang data**.
+
+Lokasi mengikuti `camera_operating_periods`, bukan kamar kamera sekarang. Label master kamera/kamar/kelas dapat berubah dan bukan snapshot nama historis. Legacy tanpa periode tidak diberi lokasi perkiraan. Gait hanya menampilkan nama bila atribusi VIP dan stay/enrollment historis cocok; shared/ambigu/legacy tetap unknown. Identitas fall hanya dibaca dari verifikasi yang tersimpan. Tidak ada inference, streaming/CCTV, atau diagnosis.
+
+Monitoring keselamatan tersedia untuk semua kelas tanpa syarat pembayaran, benefit keluarga, status aktif konfigurasi sekarang, atau pengaktifan gateway. Tidak ada migration, seeder, atau sinkronisasi data baru untuk dashboard.
+
+Inertia DevTools dinonaktifkan secara eksplisit dalam `config/inertia.php` agar request/props privat tidak direkam dan dibaca melalui route debug lokal tanpa batas akun. Jangan mengaktifkannya pada aplikasi berisi data pribadi. Rekaman existing tidak dihapus otomatis. `.env` dan history/session security existing dipertahankan.
+
+Rancangan dan keputusan ada pada [audit Phase 5](docs/report/SILANSIA_PHASE_5_AUDIT_REPORT.md); hasil pengujian aktual dan batasan ada pada [laporan Phase 5](docs/report/SILANSIA_PHASE_5_REPORT.md).
+
 ## Verifikasi
 
 ~~~powershell
@@ -166,4 +182,4 @@ Tes Laravel umum memakai SQLite in-memory; kasus PostgreSQL sengaja skipped di s
 
 Lihat [laporan Phase 4A](docs/report/SILANSIA_PHASE_4A_REPORT.md) untuk konfigurasi kamera terbaru, [laporan Phase 3C](docs/report/SILANSIA_PHASE_3C_REPORT.md) untuk workflow operasional, serta [laporan revisi manfaat Phase 3B](docs/report/SILANSIA_PHASE_3B_BENEFIT_REVISION_REPORT.md) dan [hasil sinkronisasi manfaat](docs/report/SILANSIA_PHASE_3B_BENEFIT_SYNC_FINAL_REPORT.md). [Laporan Phase 3B awal](docs/report/SILANSIA_PHASE_3B_REPORT.md) dan [laporan Phase 3A](docs/report/SILANSIA_PHASE_3A_REPORT.md) dipertahankan sebagai riwayat. Ketentuan manfaat lama pada laporan historis digantikan matriks final di atas. Lihat juga [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Laporan pribadi dalam docs/report/ dapat diabaikan oleh Git dan tidak selalu tersedia pada checkout lain.
 
-Fase web setelah gateway dan Stage B integrasi model nyata menunggu persetujuan terpisah. Review/verifikasi insiden, alert/notifikasi, CCTV/streaming, laporan gait keluarga, dan billing belum menjadi workflow yang berjalan. Tidak ada otomatisasi transfer penghuni.
+Phase 6 dan Stage B integrasi model nyata menunggu persetujuan terpisah. Review/verifikasi insiden, alert/notifikasi, CCTV/streaming, laporan gait keluarga, dan billing belum menjadi workflow yang berjalan. Tidak ada otomatisasi transfer penghuni.

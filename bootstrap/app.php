@@ -54,7 +54,14 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->header('Cache-Control', 'no-store, private');
             }
             if (! $request->expectsJson() && in_array($status, [403, 404, 419, 429, 500, 503], true)) {
-                $error = Inertia::render('Error', ['status' => $status])->toResponse($request)->setStatusCode($status);
+                $errorFactory = Inertia::getFacadeRoot();
+                if ($request->is('monitoring/*', 'admin', 'perawat')) {
+                    // Response error tidak perlu memantulkan query asing/privat.
+                    // Clone mencegah resolver ini memengaruhi response/worker berikutnya.
+                    $errorFactory = clone $errorFactory;
+                    $errorFactory->resolveUrlUsing(fn (Request $request) => $request->getBaseUrl().$request->getPathInfo());
+                }
+                $error = $errorFactory->render('Error', ['status' => $status])->toResponse($request)->setStatusCode($status);
                 $error->headers->set('Cache-Control', 'no-store, private');
                 foreach (['Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'] as $header) {
                     if ($response->headers->has($header)) {

@@ -55,7 +55,7 @@ Runner melakukan:
 3. Menjalankan enam probe penolakan sebelum baseline: cache stale, environment salah, konfigurasi database salah, konteks hilang, OID salah, dan token salah. Database target tetap belum memiliki tabel migrations setelah probe.
 4. Menerapkan migration Laravel bawaan melalui `tests/Support/postgres-child.php`. Child hanya menerima action baseline/migrate/rollback/status/phpunit, bukan perintah shell bebas.
 5. Menguji guard konversi dengan exception RuntimeException dan pesan yang tepat. Snapshot tipe/default/nullability kolom, seluruh record migration, serta seluruh baris user/session fixture harus sama sebelum/sesudah penolakan. Error koneksi/SQL lain tidak dianggap hasil negatif yang sukses.
-6. Menerapkan tiga migration Phase 1 dan dua migration Phase 4B, membaca status, lalu menjalankan seluruh suite PostgreSQL Phase 1–4B melalui `phpunit.pgsql.xml`, dengan `--fail-on-risky` dan `--fail-on-warning`. Hasil terbaru ada pada laporan Phase 4B; angka remediasi Phase 1 di bawah tetap historis.
+6. Menerapkan tiga migration Phase 1 dan dua migration Phase 4B, membaca status, lalu menjalankan suite PostgreSQL Phase 1–5 melalui `phpunit.pgsql.xml`, dengan `--fail-on-risky` dan `--fail-on-warning`. Phase 5 tidak menambah migration; tes Monitoring memakai pengaman yang sama. Hasil terbaru ada pada laporan Phase 5; angka remediasi Phase 1 di bawah tetap historis.
 7. Melakukan rollback **hanya lima migration domain Phase 1/4B pada DB sementara**, dimulai dari dua migration gateway, membandingkan snapshot baseline legacy lengkap, lalu menerapkan ulang seluruh migration tersebut. Guard cache/ownership/target tetap aktif; timeout child suite dibatasi 360 detik, action lain 180 detik.
 8. Menutup koneksi dan memverifikasi nama/OID/owner/server/token kembali sebelum menghapus hanya DB acak milik runner. Jika ownership tidak dapat dibuktikan, cleanup ditolak dan runner gagal; database tidak dihapus secara spekulatif. Direktori cache milik run dibersihkan tanpa penghapusan rekursif. Tidak ada `migrate:fresh` atau `db:wipe`.
 
@@ -96,6 +96,16 @@ Lifecycle kamera membuka/menutup periode dalam transaksi aktivasi/deactivation, 
 Gateway default nonaktif, memakai HMAC per-source, allowlist kamera/type, nonce database cache bersama, dan UNIQUE external_event_id existing dengan namespace source/event UUID. Metadata hanya provenance server kecil, bukan JSON model bebas. Fall membuat pending tanpa identitas/verifikasi/notifikasi; gait VIP memerlukan stay/enrollment pada waktu event dan shared tetap unknown. Monitoring keselamatan tidak memeriksa pembayaran atau benefit keluarga. [Kontrak web v1](../api/SILANSIA_AI_GATEWAY_V1.md) dan [laporan Phase 4B](../report/SILANSIA_PHASE_4B_REPORT.md) menjelaskan batasnya.
 
 Rollback migration penghubung gateway menolak deteksi yang sudah memakai periode atau fraksi waktu agar tidak merusak histori. Tidak menjalankan rollback pada database pengembangan. Semua tes perubahan schema, NaN/Infinity confidence, race, dan cleanup hanya memakai DB owned runner.
+
+## Pembacaan monitoring Phase 5
+
+Dashboard Admin/Perawat, rekaman, dan insiden terbuka memakai projection/resource whitelist dan gate petugas aktif. Setiap response monitoring memakai satu SELECT CTE untuk count, page/preview, dan agregat terkait dalam snapshot statement yang sama. Tidak ada lock penulisan, perubahan isolation global, materialized view, atau migration baru. Count/page tidak menggabungkan stay/enrollment/notification/invoice secara one-to-many; validasi identitas historis memakai subquery yang tidak menggandakan event.
+
+Rentang memakai occurred_at dengan ujung eksklusif dan presisi mikrodetik; received_at ditampilkan terpisah. Tanggal kalender Asia/Jakarta dikonversi ke batas UTC secara eksplisit, terlepas dari timezone session DB. Kamera dihitung menurut status administrasi saat ini; pending/acknowledged terbuka dihitung seluruh waktu tanpa mengikuti filter event. Tidak ada status verified/online baru.
+
+Konteks lokasi dan kelas menggunakan FK periode, memeriksa interval [opened_at,closed_at). Legacy NULL atau konteks tidak konsisten tidak memakai cameras.room_id sekarang sebagai fallback. Snapshot periode tidak menyimpan nama: UI menggunakan label master kini secara transparan. Atribusi gait memerlukan snapshot VIP/private/capacity 1 dan satu stay/enrollment historis yang cocok; unknown tidak mendapat nama berdasarkan penghuni kini.
+
+Pembacaan tidak mengubah data domain atau notifikasi. Monitoring semua kelas tidak bergantung pada invoice/payment, family benefit, atau status gateway/kamera sekarang. SQL/metadata/sumber privat tidak masuk props. Inertia DevTools dinonaktifkan melalui konfigurasi source; arsip lama dipertahankan. Query pagination dinamis tidak menjanjikan snapshot yang sama lintas request. Hasil dan keterbatasan pengujian dicatat di [laporan Phase 5](../report/SILANSIA_PHASE_5_REPORT.md).
 
 ## Kontrak AI sementara
 

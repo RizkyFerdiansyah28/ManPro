@@ -32,7 +32,9 @@ class SessionAuthenticationTest extends PostgresFeatureTestCase
         $this->assertNotSame($before, session()->getId());
         $this->assertNotSame($token, session()->token());
         $this->get($destination)->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->component('Dashboard')->where('auth.user.id', $user->id)
+            ->component(match ($role) {
+                'admin' => 'Admin/Monitoring/Dashboard', 'perawat' => 'Caregiver/Monitoring/Dashboard', default => 'Dashboard',
+            })->where('auth.user.id', $user->id)
             ->missing('auth.user.password')->missing('auth.user.remember_token'));
         $this->get('/login')->assertRedirect($destination);
         $this->get('/dashboard')->assertRedirect($destination);

@@ -11,6 +11,7 @@
             <directory>tests/Feature/Operations</directory>
             <directory>tests/Feature/Cameras</directory>
             <directory>tests/Feature/AiGateway</directory>
+            <directory>tests/Feature/Monitoring</directory>
         </testsuite>
     </testsuites>
     <source><include><directory>app</directory></include></source>

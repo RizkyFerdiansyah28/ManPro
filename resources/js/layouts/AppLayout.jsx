@@ -16,6 +16,7 @@ export default function AppLayout({ children }) {
                     <Brand href={user.home_url} />
                     <nav aria-label="Navigasi utama" className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm font-medium">
                         <Link href={user.home_url} className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Beranda</Link>
+                        {['admin', 'perawat'].includes(user.role) && <><Link href="/monitoring/records" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Rekaman</Link><Link href="/monitoring/open-incidents" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Insiden terbuka</Link></>}
                         {user.role === 'admin' && <Link href="/admin/accounts" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Kelola akun</Link>}
                         {user.role === 'admin' && <Link href="/admin/residents" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Kelola lansia</Link>}
                         {user.role === 'admin' && <Link href="/admin/service-classes" className="rounded text-slate-600 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500">Kelas layanan</Link>}

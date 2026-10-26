@@ -129,7 +129,7 @@ class FamilyResidentAccessTest extends PostgresFeatureTestCase
             $this->get('/keluarga/residents')->assertForbidden();
             $this->get("/keluarga/residents/{$elderly->id}")->assertForbidden();
         }
-        $this->get('/perawat')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Dashboard'));
+        $this->get('/perawat')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Caregiver/Monitoring/Dashboard'));
     }
 
     public function test_reassignment_transfers_read_access_without_changing_resident_identity(): void
