@@ -1,6 +1,6 @@
-# ERD fondasi database Silansia — Phase 1
+# Schema PostgreSQL Silansia — Phase 1–4B
 
-Diagram berikut menggambarkan 13 tabel aplikasi yang diimplementasikan. Semua PK aplikasi dan FK entitas menggunakan UUID. `NULL` pada komentar berarti relasi/kolom opsional. Tabel infrastruktur Laravel dijelaskan terpisah.
+Diagram berikut menggambarkan 14 tabel aplikasi sampai Phase 4B. Semua PK aplikasi dan FK entitas menggunakan UUID. `NULL` pada komentar berarti relasi/kolom opsional. Tabel infrastruktur Laravel dijelaskan terpisah.
 
 ```mermaid
 erDiagram
@@ -80,9 +80,23 @@ erDiagram
         timestamptz created_at "NULL"
         timestamptz updated_at "NULL"
     }
+    camera_operating_periods {
+        uuid id PK
+        uuid camera_id FK
+        uuid room_id FK
+        uuid service_class_id FK
+        varchar room_type
+        integer room_capacity
+        varchar source_type
+        timestamptz opened_at "presisi 6"
+        timestamptz closed_at "NULL, presisi 6"
+        timestamptz created_at "NULL, presisi 6"
+        timestamptz updated_at "NULL, presisi 6"
+    }
     ai_detections {
         uuid id PK
         uuid camera_id FK
+        uuid camera_period_id FK "NULL untuk legacy"
         varchar external_event_id UK
         varchar event_type "gait atau fall"
         timestamptz occurred_at
@@ -164,6 +178,10 @@ erDiagram
     service_classes ||--o{ service_enrollments : service_class_id
     rooms ||--o| cameras : room_id
     cameras ||--o{ ai_detections : camera_id
+    cameras ||--o{ camera_operating_periods : camera_id
+    rooms ||--o{ camera_operating_periods : room_id
+    service_classes ||--o{ camera_operating_periods : service_class_id
+    camera_operating_periods o|--o{ ai_detections : camera_period_id
     ai_detections ||--o| gait_observations : ai_detection_id
     elderlies o|--o{ gait_observations : elderly_id
     ai_detections ||--o| fall_incidents : ai_detection_id
@@ -178,6 +196,8 @@ erDiagram
     users ||--o{ payments : submitted_by
     users o|--o{ payments : verified_by
 ```
+
+Phase 4B menambahkan periode operasi kamera dengan snapshot kamar/kelas/kapasitas/source_type tanpa credential. Aktivasi/deactivation membuka/menutup periode melalui layanan dalam transaksi yang sama. FK gabungan `(camera_period_id, camera_id)` pada deteksi memastikan periode milik kamera tersebut; nullable hanya untuk kompatibilitas legacy. `occurred_at`/`received_at` deteksi serta timestamps periode memakai presisi 6; timestamp domain lama lainnya tetap presisi 0. Lookup kamar historis harus melalui periode, bukan `camera.room` sekarang. Tidak ada backfill historis atau aktivasi kamera otomatis.
 
 ## Constraint yang diterapkan
 
@@ -214,6 +234,8 @@ Phase 1 tidak menyediakan layanan mutasi operasional. Pada tahap layanan transak
 Aturan tersebut adalah pekerjaan tahap berikut, bukan jaminan dari constraint Phase 1. Tidak ada trigger tersembunyi yang menegakkannya.
 
 Perkembangan Phase 3C: sesuai keputusan pengguna, pengaman masa tinggal/enrollment diimplementasikan pada layanan transaksi tanpa perubahan schema. Enrollment mendahului stay, boleh tetap aktif tanpa stay, dan tidak boleh ditutup selama stay masih aktif. Kelas harus cocok dengan kamar, harga NULL ditolak saat pembuatan enrollment, dan snapshot tidak dihitung ulang. Urutan lock aplikasi adalah actor → kelas berurutan UUID → kamar → lansia → record operasional, dengan PostgreSQL READ COMMITTED. Penulisan waktu memakai waktu server; workflow tidak menerima backdate atau penjadwalan. Partial unique indexes melindungi maksimal satu record terbuka; seluruh aturan lintas tabel tersebut tetap bukan jaminan untuk SQL langsung yang melewati layanan.
+
+Perkembangan Phase 4B: gateway memakai urutan kelas → kamar → calon lansia → kamera → periode → deteksi/child. UNIQUE event global dipertahankan dengan namespace sumber/UUID produsen dan hash payload canonical. Deteksi dan child disimpan atomik, tipe event diperiksa layanan; insiden selalu pending tanpa verifikasi/identitas/notifikasi otomatis. Gait shared tetap unknown; VIP memakai satu stay/enrollment historis yang cocok. Partial UNIQUE satu periode terbuka, CHECK interval/snapshot, dan FK RESTRICT melengkapi layanan; tidak ada trigger aplikasi untuk seluruh overlap lintas baris. Kontrak web berversi dan batas late event 24 jam ada pada [spesifikasi API](../api/SILANSIA_AI_GATEWAY_V1.md); layanan model nyata belum diintegrasikan.
 
 ## Infrastruktur dan migrasi legacy
 

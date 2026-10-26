@@ -34,4 +34,9 @@ class Camera extends Model
     {
         return $this->hasMany(AiDetection::class);
     }
+
+    public function operatingPeriods(): HasMany
+    {
+        return $this->hasMany(CameraOperatingPeriod::class);
+    }
 }

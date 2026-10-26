@@ -1,6 +1,6 @@
 # Silansia
 
-Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, pengelolaan lansia dan hubungan keluarga Phase 3A, kelas layanan dan kamar Phase 3B, masa tinggal dan enrollment Phase 3C, serta konfigurasi kamera Admin Phase 4A.
+Aplikasi web pemantauan lansia untuk panti. Implementasi saat ini mencakup fondasi database Phase 1, autentikasi/provisioning/otorisasi Phase 2, pengelolaan lansia dan hubungan keluarga Phase 3A, kelas layanan dan kamar Phase 3B, masa tinggal dan enrollment Phase 3C, konfigurasi kamera Admin Phase 4A, serta gateway hasil AI Phase 4B yang default nonaktif.
 
 Laravel 13, PostgreSQL, Inertia React, Tailwind CSS 4, dan Vite digunakan sesuai dependency yang sudah tersedia. Entitas aplikasi memakai UUID. Tidak ada registrasi publik.
 
@@ -140,12 +140,22 @@ Penonaktifan kamera tidak melepas kamar atau riwayat. Guard Phase 3B tetap menol
 
 Mutasi menggunakan PostgreSQL READ COMMITTED dengan urutan actor → kelas menurut UUID → kamar menurut UUID → kamera. Integrasi AI mendatang tetap harus memvalidasi status/asosiasi kamera dan waktu event dengan protokol lock yang konsisten; konfigurasi ini belum merupakan kontrak ingestion. Jangan menjalankan worker tes `tests/Support/camera-worker.php` secara langsung; worker hanya menerima context DB acak milik runner.
 
+## Gateway hasil AI — Phase 4B
+
+Dua endpoint JSON stateless (`POST /api/ai/v1/fall-detections` dan `POST /api/ai/v1/gait-observations`) menerima hasil terstruktur dari sumber mesin yang diizinkan. Autentikasi HMAC, timestamp request, nonce database cache bersama, allowlist kamera/type, rate limit, dan idempotensi terpisah dari sesi manusia. Tidak ada model, inference, akses webcam/RTSP, streaming, atau pengiriman notifikasi. Gateway tetap disabled dengan registry kosong; `.env` existing tidak diubah.
+
+Dua migration aditif menambah `camera_operating_periods`, FK gabungan periode/kamera pada deteksi, dan presisi `occurred_at`/`received_at` menjadi mikrodetik. Aktivasi membuka periode baru; penonaktifan menutupnya dalam transaksi yang sama. Kamera existing tidak di-backfill atau di-toggle. Kamera aktif legacy tanpa periode perlu transisi Admin yang nyata sebelum capture baru dapat mempunyai konteks gateway yang sah. Event historis membaca kamar dari periode, bukan asosiasi kamera sekarang.
+
+Event baru maksimal terlambat 24 jam, tidak di masa depan, dan berada dalam periode capture yang sah. Kamera boleh kini nonaktif/berpindah untuk event periode lama. Fall membuat insiden pending tanpa identitas/verifikasi otomatis. Gait hanya tiga kategori existing; shared selalu unknown, VIP memerlukan satu stay/enrollment historis yang cocok. Billing/benefit tidak membatasi ingestion keselamatan. Retry identik mengembalikan ID sama tanpa menulis ulang histori.
+
+Lihat [kontrak API v1](docs/api/SILANSIA_AI_GATEWAY_V1.md), [audit yang disetujui](docs/report/SILANSIA_PHASE_4B_AUDIT_REPORT.md), dan [laporan implementasi Phase 4B](docs/report/SILANSIA_PHASE_4B_REPORT.md). CLI `silansia:ai-gateway-manifest --source=<UUID>` hanya membaca ID periode/kamera yang diizinkan tanpa secret, URL, atau penghuni. Pengaktifan gateway dan integrasi layanan AI nyata memerlukan konfigurasi serta persetujuan tersendiri.
+
 ## Verifikasi
 
 ~~~powershell
 & $php tests/Support/run-postgres.php
 & $php artisan test --no-ansi
-& $php vendor/bin/pint --test app routes tests/Feature tests/Support/FacilityFeatureTestCase.php tests/Support/CameraFeatureTestCase.php tests/Support/PostgresFeatureTestCase.php tests/Support/operations-worker.php tests/Support/camera-worker.php bootstrap/app.php config/inertia.php --no-ansi
+& $php vendor/bin/pint --test app routes tests/Feature tests/Support config/ai_gateway.php bootstrap/app.php config/inertia.php database/migrations/2026_10_24_000004_create_camera_operating_periods.php database/migrations/2026_10_24_000005_link_ai_detections_to_camera_periods.php --no-ansi
 npm.cmd run build
 git diff --check
 ~~~
@@ -156,4 +166,4 @@ Tes Laravel umum memakai SQLite in-memory; kasus PostgreSQL sengaja skipped di s
 
 Lihat [laporan Phase 4A](docs/report/SILANSIA_PHASE_4A_REPORT.md) untuk konfigurasi kamera terbaru, [laporan Phase 3C](docs/report/SILANSIA_PHASE_3C_REPORT.md) untuk workflow operasional, serta [laporan revisi manfaat Phase 3B](docs/report/SILANSIA_PHASE_3B_BENEFIT_REVISION_REPORT.md) dan [hasil sinkronisasi manfaat](docs/report/SILANSIA_PHASE_3B_BENEFIT_SYNC_FINAL_REPORT.md). [Laporan Phase 3B awal](docs/report/SILANSIA_PHASE_3B_REPORT.md) dan [laporan Phase 3A](docs/report/SILANSIA_PHASE_3A_REPORT.md) dipertahankan sebagai riwayat. Ketentuan manfaat lama pada laporan historis digantikan matriks final di atas. Lihat juga [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Laporan pribadi dalam docs/report/ dapat diabaikan oleh Git dan tidak selalu tersedia pada checkout lain.
 
-Phase 4B dan seterusnya menunggu persetujuan terpisah: AI, insiden, CCTV/streaming, notifikasi, dan billing belum diimplementasikan. Tidak ada otomatisasi transfer penghuni.
+Fase web setelah gateway dan Stage B integrasi model nyata menunggu persetujuan terpisah. Review/verifikasi insiden, alert/notifikasi, CCTV/streaming, laporan gait keluarga, dan billing belum menjadi workflow yang berjalan. Tidak ada otomatisasi transfer penghuni.

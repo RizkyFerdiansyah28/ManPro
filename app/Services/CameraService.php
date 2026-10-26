@@ -142,6 +142,14 @@ class CameraService
                 $camera->is_active = $active;
                 $camera->save();
 
+                $periods = app(CameraOperatingPeriodService::class);
+                if ($active) {
+                    $room = $rooms->get($camera->room_id);
+                    $periods->open($camera, $room, $classes->get($room->service_class_id));
+                } else {
+                    $periods->close($camera);
+                }
+
                 return true;
             });
     }

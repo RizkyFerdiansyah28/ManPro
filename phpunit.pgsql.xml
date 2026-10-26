@@ -10,6 +10,7 @@
             <directory>tests/Feature/Facilities</directory>
             <directory>tests/Feature/Operations</directory>
             <directory>tests/Feature/Cameras</directory>
+            <directory>tests/Feature/AiGateway</directory>
         </testsuite>
     </testsuites>
     <source><include><directory>app</directory></include></source>
