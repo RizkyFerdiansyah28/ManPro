@@ -15,7 +15,7 @@ class FallIncident extends Model
 {
     use HasUuids;
 
-    protected $dateFormat = 'Y-m-d H:i:sP';
+    protected $dateFormat = 'Y-m-d H:i:s.uP';
 
     protected function casts(): array
     {
@@ -49,5 +49,10 @@ class FallIncident extends Model
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
+    }
+
+    public function actions(): HasMany
+    {
+        return $this->hasMany(FallIncidentAction::class)->orderBy('sequence');
     }
 }

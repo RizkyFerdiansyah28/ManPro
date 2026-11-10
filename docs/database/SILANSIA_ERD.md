@@ -1,6 +1,6 @@
 # Schema PostgreSQL Silansia — Phase 1–4B
 
-Diagram berikut menggambarkan 14 tabel aplikasi sampai Phase 4B. Semua PK aplikasi dan FK entitas menggunakan UUID. `NULL` pada komentar berarti relasi/kolom opsional. Tabel infrastruktur Laravel dijelaskan terpisah.
+Diagram berikut menggambarkan 15 tabel aplikasi sampai Phase 6. Semua PK aplikasi dan FK entitas menggunakan UUID. `NULL` pada komentar berarti relasi/kolom opsional. Tabel infrastruktur Laravel dijelaskan terpisah.
 
 ```mermaid
 erDiagram
@@ -129,6 +129,20 @@ erDiagram
         timestamptz created_at "NULL"
         timestamptz updated_at "NULL"
     }
+    fall_incident_actions {
+        uuid id PK
+        uuid fall_incident_id FK
+        uuid actor_id FK
+        uuid request_id "UNIQUE bersama actor_id"
+        integer sequence "Positif; UNIQUE bersama fall_incident_id"
+        varchar action "acknowledge, verify, resolve, false_alarm"
+        varchar from_status
+        varchar to_status
+        uuid elderly_id FK "NULL; hanya pilihan pada verify"
+        text notes "NULL untuk acknowledge; privat, wajib pada tindakan lain"
+        char request_fingerprint "64 hex; internal"
+        timestamptz acted_at "Presisi 6; dibuat server setelah lock"
+    }
     notifications {
         uuid id PK
         varchar type
@@ -188,6 +202,9 @@ erDiagram
     elderlies o|--o{ fall_incidents : elderly_id
     users o|--o{ fall_incidents : responding_caregiver_id
     users o|--o{ fall_incidents : verified_by
+    fall_incidents ||--o{ fall_incident_actions : fall_incident_id
+    users ||--o{ fall_incident_actions : actor_id
+    elderlies o|--o{ fall_incident_actions : elderly_id
     users ||--o{ notifications : notifiable_id
     fall_incidents o|--o{ notifications : fall_incident_id
     elderlies ||--o{ invoices : elderly_id

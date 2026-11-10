@@ -37,7 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
-        $exceptions->dontFlash(['current_password', 'password', 'password_confirmation', 'source_reference']);
+        $exceptions->dontFlash(['current_password', 'password', 'password_confirmation', 'source_reference', 'notes']);
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             $status = $response->getStatusCode();
             if ($request->is('api/ai/*') && $status >= 400 && ! $exception instanceof AiGatewayException) {
@@ -53,7 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 return response()->json(['message' => 'Layanan sedang bermasalah. Silakan coba kembali nanti.'], $status)
                     ->header('Cache-Control', 'no-store, private');
             }
-            if (! $request->expectsJson() && in_array($status, [403, 404, 419, 429, 500, 503], true)) {
+            if (! $request->expectsJson() && in_array($status, [403, 404, 409, 419, 429, 500, 503], true)) {
                 $errorFactory = Inertia::getFacadeRoot();
                 if ($request->is('monitoring/*', 'admin', 'perawat')) {
                     // Response error tidak perlu memantulkan query asing/privat.

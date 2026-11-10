@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Camera;
 use App\Models\Elderly;
 use App\Models\ElderlyStay;
+use App\Models\FallIncident;
 use App\Models\Room;
 use App\Models\ServiceClass;
 use App\Models\ServiceEnrollment;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Policies\CameraPolicy;
 use App\Policies\ElderlyPolicy;
 use App\Policies\ElderlyStayPolicy;
+use App\Policies\FallIncidentPolicy;
 use App\Policies\RoomPolicy;
 use App\Policies\ServiceClassPolicy;
 use App\Policies\ServiceEnrollmentPolicy;
@@ -39,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::define('viewMonitoring', fn (User $user) => $user->is_active && in_array($user->role, ['admin', 'perawat'], true));
         Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(FallIncident::class, FallIncidentPolicy::class);
         Gate::policy(Camera::class, CameraPolicy::class);
         Gate::policy(Elderly::class, ElderlyPolicy::class);
         Gate::policy(ElderlyStay::class, ElderlyStayPolicy::class);

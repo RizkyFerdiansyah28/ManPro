@@ -18,6 +18,6 @@ export default function MonitoringHeader({ title, description, asOf }) {
         </div>
         <p className="mt-4 text-xs text-slate-500" role="status">Data dimuat: {formatMonitoringTime(asOf)} · WIB (UTC+07:00) · Pembaruan manual.</p>
         {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
-        <nav aria-label="Halaman monitoring" className="mt-5 flex flex-wrap gap-5 text-sm font-semibold text-emerald-800"><Link href="/monitoring/records" className="hover:underline">Semua rekaman →</Link><Link href="/monitoring/open-incidents" className="hover:underline">Insiden terbuka · seluruh waktu →</Link></nav>
+        <nav aria-label="Halaman monitoring" className="mt-5 flex flex-wrap gap-5 text-sm font-semibold text-emerald-800"><Link href="/monitoring/records" className="hover:underline">Semua rekaman →</Link><Link href="/monitoring/open-incidents" className="hover:underline">Insiden terbuka · seluruh waktu →</Link><Link href="/monitoring/incidents" className="hover:underline">Seluruh insiden →</Link></nav>
     </header>;
 }

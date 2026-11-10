@@ -176,7 +176,7 @@ class MonitoringReadService
                 CASE WHEN $valid THEN p.service_class_id END AS class_id,
                 CASE WHEN $valid THEN s.code END AS class_code, CASE WHEN $valid THEN s.name END AS class_name,
                 (g.id IS NOT NULL) AS has_gait,g.category AS gait_category,
-                (f.id IS NOT NULL) AS has_incident,f.status AS fall_status,
+                (f.id IS NOT NULL) AS has_incident,f.id AS incident_id,f.status AS fall_status,
                 (f.verified_at IS NOT NULL AND f.verified_by IS NOT NULL) AS is_verified,
                 f.acknowledged_at,f.verified_at,f.resolved_at,
                 CASE WHEN $gaitIdentity THEN eg.name WHEN $fallIdentity THEN ef.name END AS identity_name,

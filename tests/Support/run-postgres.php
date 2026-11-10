@@ -185,16 +185,16 @@ try {
     $run('phpunit');
     $guard->assertTarget($testDb);
     $domainMigrations = $testDb->table('migrations')->count() - count($baseline['migrations']);
-    if ($domainMigrations !== 5) {
-        throw new RuntimeException('Jumlah migration domain tidak sesuai Phase 1 dan 4B.');
+    if ($domainMigrations !== 6) {
+        throw new RuntimeException('Jumlah migration domain tidak sesuai Phase 1, 4B, dan 6.');
     }
     foreach (range(1, $domainMigrations) as $step) {
         $run('rollback');
     }
     $assertSnapshot($baseline);
-    echo "PASS: rollback lima migration Phase 1/4B, tipe awal, catatan migration, dan seluruh sesi anonim terjaga.\n";
+    echo "PASS: rollback enam migration Phase 1/4B/6, tipe awal, catatan migration, dan seluruh sesi anonim terjaga.\n";
     $run('migrate');
-    echo "PASS: seluruh migration Phase 1/4B dapat diterapkan ulang.\n";
+    echo "PASS: seluruh migration Phase 1/4B/6 dapat diterapkan ulang.\n";
 } catch (Throwable $exception) {
     echo 'Verifikasi gagal ('.get_class($exception).'). ';
     echo get_class($exception) === RuntimeException::class || get_class($exception) === LogicException::class

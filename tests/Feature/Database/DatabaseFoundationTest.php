@@ -383,9 +383,9 @@ class DatabaseFoundationTest extends TestCase
     {
         $document = file_get_contents(base_path('docs/database/SILANSIA_ERD.md'));
         preg_match_all('/^    ([a-z_]+) \{\R(.*?)^    \}/ms', $document, $entities, PREG_SET_ORDER);
-        $this->assertCount(14, $entities);
+        $this->assertCount(15, $entities);
         $types = [
-            'uuid' => 'uuid', 'varchar' => 'character varying', 'text' => 'text',
+            'uuid' => 'uuid', 'varchar' => 'character varying', 'char' => 'character', 'text' => 'text',
             'numeric' => 'numeric', 'integer' => 'integer', 'boolean' => 'boolean',
             'date' => 'date', 'timestamp' => 'timestamp without time zone',
             'timestamptz' => 'timestamp with time zone', 'jsonb' => 'jsonb',

@@ -29,7 +29,8 @@ class MonitoringRecordResource extends JsonResource
                 'service_class' => $row->class_id === null ? null : ['id' => $row->class_id, 'code' => $row->class_code, 'name' => $row->class_name]],
             'identity' => $identity,
             'gait' => $row->has_gait ? ['category' => $row->gait_category] : null,
-            'fall' => $row->has_incident ? ['status' => $row->fall_status, 'is_verified' => $row->is_verified,
+            'fall' => $row->has_incident ? ['detail_url' => route('monitoring.incidents.show', $row->incident_id, absolute: false),
+                'status' => $row->fall_status, 'is_verified' => $row->is_verified,
                 'acknowledged_at' => $instant($row->acknowledged_at), 'verified_at' => $instant($row->verified_at),
                 'resolved_at' => $instant($row->resolved_at)] : null,
         ];

@@ -9,6 +9,8 @@ use App\Http\Controllers\Admin\ServiceClassController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Family\ResidentController as FamilyResidentController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Monitoring\IncidentActionController;
+use App\Http\Controllers\Monitoring\IncidentController;
 use App\Http\Controllers\Monitoring\MonitoringDashboardController;
 use App\Http\Controllers\Monitoring\MonitoringRecordsController;
 use App\Http\Controllers\Monitoring\OpenIncidentController;
@@ -25,6 +27,13 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::middleware('can:viewMonitoring')->prefix('monitoring')->name('monitoring.')->group(function () {
         Route::get('/records', MonitoringRecordsController::class)->name('records');
         Route::get('/open-incidents', OpenIncidentController::class)->name('open-incidents');
+        Route::get('/incidents', [IncidentController::class, 'index'])->name('incidents.index');
+        Route::get('/incidents/{incident}', [IncidentController::class, 'show'])->name('incidents.show');
+        Route::get('/incidents/{incident}/resident-options', [IncidentController::class, 'residentOptions'])->name('incidents.resident-options');
+        foreach (['acknowledge', 'verify', 'resolve', 'false_alarm'] as $action) {
+            Route::post('/incidents/{incident}/'.str_replace('_', '-', $action), IncidentActionController::class)
+                ->defaults('action', $action)->name('incidents.'.$action);
+        }
     });
     Route::get('/dashboard', [HomeController::class, 'redirect'])->name('dashboard');
     Route::post('/logout', [SessionController::class, 'destroy'])->name('logout');

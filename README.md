@@ -182,4 +182,16 @@ Tes Laravel umum memakai SQLite in-memory; kasus PostgreSQL sengaja skipped di s
 
 Lihat [laporan Phase 4A](docs/report/SILANSIA_PHASE_4A_REPORT.md) untuk konfigurasi kamera terbaru, [laporan Phase 3C](docs/report/SILANSIA_PHASE_3C_REPORT.md) untuk workflow operasional, serta [laporan revisi manfaat Phase 3B](docs/report/SILANSIA_PHASE_3B_BENEFIT_REVISION_REPORT.md) dan [hasil sinkronisasi manfaat](docs/report/SILANSIA_PHASE_3B_BENEFIT_SYNC_FINAL_REPORT.md). [Laporan Phase 3B awal](docs/report/SILANSIA_PHASE_3B_REPORT.md) dan [laporan Phase 3A](docs/report/SILANSIA_PHASE_3A_REPORT.md) dipertahankan sebagai riwayat. Ketentuan manfaat lama pada laporan historis digantikan matriks final di atas. Lihat juga [panduan database](docs/database/README.md) dan [ERD](docs/database/SILANSIA_ERD.md) untuk fondasi Phase 1. Laporan pribadi dalam docs/report/ dapat diabaikan oleh Git dan tidak selalu tersedia pada checkout lain.
 
-Phase 6 dan Stage B integrasi model nyata menunggu persetujuan terpisah. Review/verifikasi insiden, alert/notifikasi, CCTV/streaming, laporan gait keluarga, dan billing belum menjadi workflow yang berjalan. Tidak ada otomatisasi transfer penghuni.
+## Penanganan insiden — Phase 6
+
+`/monitoring/incidents` menyediakan seluruh insiden sepanjang waktu dengan filter empat status dan pagination. Tautan detail tersedia dari dashboard, antrean terbuka, dan rekaman. Admin aktif mengawasi secara read-only; Perawat aktif dapat menangani bersama. Petugas acknowledge pertama tetap tersimpan, sedangkan jurnal mencatat pelaku setiap tindakan.
+
+Alur manual: pending → acknowledge → acknowledged belum diverifikasi → verify jatuh benar → acknowledged terverifikasi → resolve. Alternatif false_alarm hanya dari acknowledged belum diverifikasi. Acknowledge terpisah wajib; tidak ada reopen/koreksi identitas/edit jurnal. Catatan wajib pada verify/resolve/false_alarm (maksimal 2.000 karakter), opsional pada acknowledge. Catatan operasional hanya tersedia pada detail staf yang berwenang.
+
+Identitas boleh tetap unknown sampai resolved. Pilihan bernama harus dipilih manual dari stay historis di kamar/periode saat kejadian, tanpa overlap ambigu. VIP atau satu penghuni tidak dipilih otomatis. Legacy tanpa konteks cukup tetap unknown; tidak menebak dari posisi kamera sekarang atau memblokir penanganan karena billing/benefit.
+
+Migration aditif Phase 6 menambah `fall_incident_actions` dan memperluas lima timestamp insiden ke mikrodetik, tanpa backfill histori spekulatif. Row lock, token versi, dan request UUID menjaga konflik/retry. Request yang sama dapat diulang tanpa menulis jurnal/waktu ulang; intent baru yang stale harus memuat ulang detail.
+
+Pada instalasi existing, periksa environment/koneksi/database dan backup/preservasi sesuai prosedur lokal sebelum `artisan migrate` aditif. Jangan reset, menjalankan seeder ulang, atau rollback untuk menampilkan contoh data. Implementasi ini tidak membuat fixture pada database development.
+
+Hasil aktual dan keterbatasan: [laporan Phase 6](docs/report/SILANSIA_PHASE_6_REPORT.md), dengan [audit/desain historis](docs/report/SILANSIA_PHASE_6_AUDIT_REPORT.md) tetap dipertahankan. Stage B AI nyata, notifikasi/alert otomatis, CCTV/streaming, laporan keluarga, billing, dan Phase 7 belum termasuk. Tidak ada otomatisasi transfer penghuni.
