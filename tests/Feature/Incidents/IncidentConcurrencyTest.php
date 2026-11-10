@@ -58,6 +58,7 @@ class IncidentConcurrencyTest extends IncidentFeatureTestCase
         $this->assertSame($this->nurse->id, $this->incident->fresh()->responding_caregiver_id);
         $this->assertSame($before, $this->incident->fresh()->aiDetection->getRawOriginal());
         $this->assertSame(1, $this->incident->actions()->count());
+        $this->assertSame(2, DB::table('notifications')->where('fall_incident_id', $this->incident->id)->count());
     }
 
     private ?InputStream $releaseStream = null;
@@ -254,6 +255,8 @@ class IncidentConcurrencyTest extends IncidentFeatureTestCase
             while (DB::transactionLevel()) {
                 DB::rollBack();
             }
+            $this->guard();
+            DB::table('notifications')->whereIn('fall_incident_id', $this->owned['fall_incidents'])->delete();
             $this->guard();
             DB::table('fall_incident_actions')->whereIn('fall_incident_id', $this->owned['fall_incidents'])->delete();
             foreach (self::CLEANUP as $table) {

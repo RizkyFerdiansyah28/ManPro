@@ -14,6 +14,7 @@ use App\Http\Controllers\Monitoring\IncidentController;
 use App\Http\Controllers\Monitoring\MonitoringDashboardController;
 use App\Http\Controllers\Monitoring\MonitoringRecordsController;
 use App\Http\Controllers\Monitoring\OpenIncidentController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'redirect'])->name('home');
@@ -24,6 +25,12 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware(['auth', 'auth.session'])->group(function () {
+    Route::middleware('can:viewNotifications')->prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::get('/summary', [NotificationController::class, 'summary'])->middleware('throttle:notification-summary')->name('summary');
+        Route::post('/read-all', [NotificationController::class, 'readAll'])->name('read-all');
+        Route::post('/{notification}/read', [NotificationController::class, 'read'])->name('read');
+    });
     Route::middleware('can:viewMonitoring')->prefix('monitoring')->name('monitoring.')->group(function () {
         Route::get('/records', MonitoringRecordsController::class)->name('records');
         Route::get('/open-incidents', OpenIncidentController::class)->name('open-incidents');

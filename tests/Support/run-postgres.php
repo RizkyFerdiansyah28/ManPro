@@ -76,7 +76,7 @@ try {
         $guard->assertTarget($testDb);
         $process = new Process([PHP_BINARY, 'tests/Support/postgres-child.php', $action],
             dirname(__DIR__, 2), array_replace($environment, $overrides));
-        $process->setTimeout($action === 'phpunit' ? 360 : 180);
+        $process->setTimeout($action === 'phpunit' ? 600 : 180);
         $process->run();
         if ($action === 'phpunit' && $expected === null) {
             echo $process->getOutput();
@@ -185,16 +185,16 @@ try {
     $run('phpunit');
     $guard->assertTarget($testDb);
     $domainMigrations = $testDb->table('migrations')->count() - count($baseline['migrations']);
-    if ($domainMigrations !== 6) {
-        throw new RuntimeException('Jumlah migration domain tidak sesuai Phase 1, 4B, dan 6.');
+    if ($domainMigrations !== 7) {
+        throw new RuntimeException('Jumlah migration domain tidak sesuai Phase 1, 4B, 6, dan 7.');
     }
     foreach (range(1, $domainMigrations) as $step) {
         $run('rollback');
     }
     $assertSnapshot($baseline);
-    echo "PASS: rollback enam migration Phase 1/4B/6, tipe awal, catatan migration, dan seluruh sesi anonim terjaga.\n";
+    echo "PASS: rollback tujuh migration Phase 1/4B/6/7, tipe awal, catatan migration, dan seluruh sesi anonim terjaga.\n";
     $run('migrate');
-    echo "PASS: seluruh migration Phase 1/4B/6 dapat diterapkan ulang.\n";
+    echo "PASS: seluruh migration Phase 1/4B/6/7 dapat diterapkan ulang.\n";
 } catch (Throwable $exception) {
     echo 'Verifikasi gagal ('.get_class($exception).'). ';
     echo get_class($exception) === RuntimeException::class || get_class($exception) === LogicException::class

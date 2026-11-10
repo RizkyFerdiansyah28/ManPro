@@ -1,6 +1,6 @@
-# Schema PostgreSQL Silansia — Phase 1–4B
+# Schema PostgreSQL Silansia — Phase 1–7
 
-Diagram berikut menggambarkan 15 tabel aplikasi sampai Phase 6. Semua PK aplikasi dan FK entitas menggunakan UUID. `NULL` pada komentar berarti relasi/kolom opsional. Tabel infrastruktur Laravel dijelaskan terpisah.
+Diagram berikut menggambarkan 15 tabel aplikasi sampai Phase 7. Phase 7 hanya menambah constraint/index notifikasi tanpa tabel/kolom baru. Semua PK aplikasi dan FK entitas menggunakan UUID. `NULL` pada komentar berarti relasi/kolom opsional. Tabel infrastruktur Laravel dijelaskan terpisah.
 
 ```mermaid
 erDiagram
@@ -229,7 +229,7 @@ Phase 4B menambahkan periode operasi kamera dengan snapshot kamar/kelas/kapasita
 - Confidence AI opsional `numeric(6,5)`, rentang 0–1; bukan metrik klinis. `metadata` AI merupakan satu-satunya kolom JSONB. `notifications.data` berupa teks JSON agar mengikuti Laravel.
 - Gait hanya menerima tiga kategori sementara. Identitas NULL memakai `identity_basis=unknown`; identitas terisi harus memakai `vip_room_single_resident`.
 - Insiden pending tanpa identitas/responder/verifikasi. Status selain pending memerlukan responder dan acknowledgement. Status resolved memerlukan verifikasi dan waktu selesai; identitas tetap boleh NULL bila penghuni tidak bisa dipastikan. False alarm ditutup tanpa identitas/verifikasi kejadian jatuh. Waktu verifikasi/penutupan tidak boleh mendahului acknowledgement.
-- Notifikasi memakai satu tabel native dengan UUID morph recipient, dibatasi ke kelas `App\Models\User` dan FK users. Pesan berada di `data.message`; payload lain mengikuti kebutuhan tahap berikut. Pengiriman belum dibuat.
+- Notifikasi memakai satu tabel native dengan UUID morph recipient, dibatasi ke kelas `App\Models\User` dan FK users. Pesan berada di `data.message`; pengiriman staf Phase 7 dijelaskan di bawah, sedangkan notifikasi keluarga/gait tetap ditunda.
 - FK gabungan `(service_enrollment_id, elderly_id)` menjamin invoice tidak merujuk enrollment milik lansia lain. Unik `(elderly_id, billing_month)` membatasi satu invoice per lansia per bulan. Perubahan kelas/prorata intra-bulan belum dirancang sebagai beberapa invoice.
 - `grace_period_ends_on = due_date + 3` menggunakan aritmetika DATE PostgreSQL, termasuk pergantian bulan/tahun. Evaluasi jatuh tempo nantinya menggunakan tanggal operasional Asia/Jakarta.
 - Invoice `paid` wajib memiliki `paid_at`; pembayaran yang telah ditinjau (verified/rejected) wajib memiliki peninjau dan waktu tinjauan. Pemeriksaan kewenangan admin dan perubahan status invoice belum diimplementasikan.
@@ -253,6 +253,12 @@ Aturan tersebut adalah pekerjaan tahap berikut, bukan jaminan dari constraint Ph
 Perkembangan Phase 3C: sesuai keputusan pengguna, pengaman masa tinggal/enrollment diimplementasikan pada layanan transaksi tanpa perubahan schema. Enrollment mendahului stay, boleh tetap aktif tanpa stay, dan tidak boleh ditutup selama stay masih aktif. Kelas harus cocok dengan kamar, harga NULL ditolak saat pembuatan enrollment, dan snapshot tidak dihitung ulang. Urutan lock aplikasi adalah actor → kelas berurutan UUID → kamar → lansia → record operasional, dengan PostgreSQL READ COMMITTED. Penulisan waktu memakai waktu server; workflow tidak menerima backdate atau penjadwalan. Partial unique indexes melindungi maksimal satu record terbuka; seluruh aturan lintas tabel tersebut tetap bukan jaminan untuk SQL langsung yang melewati layanan.
 
 Perkembangan Phase 4B: gateway memakai urutan kelas → kamar → calon lansia → kamera → periode → deteksi/child. UNIQUE event global dipertahankan dengan namespace sumber/UUID produsen dan hash payload canonical. Deteksi dan child disimpan atomik, tipe event diperiksa layanan; insiden selalu pending tanpa verifikasi/identitas/notifikasi otomatis. Gait shared tetap unknown; VIP memakai satu stay/enrollment historis yang cocok. Partial UNIQUE satu periode terbuka, CHECK interval/snapshot, dan FK RESTRICT melengkapi layanan; tidak ada trigger aplikasi untuk seluruh overlap lintas baris. Kontrak web berversi dan batas late event 24 jam ada pada [spesifikasi API](../api/SILANSIA_AI_GATEWAY_V1.md); layanan model nyata belum diintegrasikan.
+
+## Notifikasi staf Phase 7
+
+Jenis `silansia.fall_pending.v1` memakai payload statis berversi dan FK insiden top-level. CHECK `notifications_staff_incident_check` mewajibkan FK insiden untuk jenis ini; partial UNIQUE `notifications_staff_incident_unique` membatasi satu row per morph/recipient/type/insiden. Jenis legacy tidak diberi deduplikasi baru dan FK tetap nullable pada kolom. Semua sembilan kolom dipertahankan. Pengiriman notifikasi staf telah dibuat pada Phase 7; keluarga/gait tetap ditunda.
+
+Fan-out pending hanya untuk Admin/Perawat aktif, terpisah dari transaksi sumber dan tanpa syarat billing/kelas. Lock recipient UUID mendahului insiden; UNIQUE terarah menjaga retry. Job sesudah outer commit dan rekonsiliasi terjadwal memulihkan pending yang belum terkirim. Tidak ada backfill, outbox, cohort ledger, atau perubahan kontrak AI v1. Inbox scoped milik akun dan mark read hanya mengisi read_at; status insiden/jurnal tetap melalui Phase 6. Payload privat tidak diteruskan sebagai props. Lihat [panduan database](README.md) dan [laporan Phase 7](../report/SILANSIA_PHASE_7_REPORT.md).
 
 ## Infrastruktur dan migrasi legacy
 

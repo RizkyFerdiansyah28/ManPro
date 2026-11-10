@@ -171,6 +171,7 @@ Rancangan dan keputusan ada pada [audit Phase 5](docs/report/SILANSIA_PHASE_5_AU
 ~~~powershell
 & $php tests/Support/run-postgres.php
 & $php artisan test --no-ansi
+node --test tests/Frontend/notificationPoller.test.mjs
 & $php vendor/bin/pint --test app routes tests/Feature tests/Support config/ai_gateway.php bootstrap/app.php config/inertia.php database/migrations/2026_10_24_000004_create_camera_operating_periods.php database/migrations/2026_10_24_000005_link_ai_detections_to_camera_periods.php --no-ansi
 npm.cmd run build
 git diff --check
@@ -194,4 +195,25 @@ Migration aditif Phase 6 menambah `fall_incident_actions` dan memperluas lima ti
 
 Pada instalasi existing, periksa environment/koneksi/database dan backup/preservasi sesuai prosedur lokal sebelum `artisan migrate` aditif. Jangan reset, menjalankan seeder ulang, atau rollback untuk menampilkan contoh data. Implementasi ini tidak membuat fixture pada database development.
 
-Hasil aktual dan keterbatasan: [laporan Phase 6](docs/report/SILANSIA_PHASE_6_REPORT.md), dengan [audit/desain historis](docs/report/SILANSIA_PHASE_6_AUDIT_REPORT.md) tetap dipertahankan. Stage B AI nyata, notifikasi/alert otomatis, CCTV/streaming, laporan keluarga, billing, dan Phase 7 belum termasuk. Tidak ada otomatisasi transfer penghuni.
+Hasil aktual dan keterbatasan: [laporan Phase 6](docs/report/SILANSIA_PHASE_6_REPORT.md), dengan [audit/desain historis](docs/report/SILANSIA_PHASE_6_AUDIT_REPORT.md) tetap dipertahankan. Notifikasi staf tersedia pada Phase 7 di bawah. Stage B AI nyata, CCTV/streaming, laporan keluarga, dan billing belum termasuk. Tidak ada otomatisasi transfer penghuni.
+
+## Notifikasi staf — Phase 7
+
+Admin dan Perawat aktif memiliki inbox sendiri pada `/notifications`, dengan filter semua/belum dibaca/sudah dibaca dan pagination 15/30/50. Bell menampilkan jumlah belum dibaca milik akun, terpisah dari jumlah seluruh insiden pending yang dihitung langsung dari sumber insiden. GET halaman/detail tidak menandai dibaca. POST tandai dibaca hanya mengisi `read_at` pertama; tandai semua memerlukan konfirmasi dan mencakup seluruh notifikasi insiden milik akun yang tersimpan saat statement diproses, termasuk halaman/filter lain. Keduanya tidak mengakui, memverifikasi, atau menyelesaikan insiden.
+
+Ringkasan dipoll setiap 15 detik hanya saat tab visible dan online, tanpa navigasi Inertia atau reload form insiden. Tersedia refresh manual, timeout request 10 detik, pembatalan saat tab disembunyikan, retry dengan jeda 30–60 detik saat gagal, penanda data lama, serta penghentian saat sesi/izin hilang. Beberapa tab dapat meminta ringkasan masing-masing. Daftar inbox dimuat ulang manual. Ini bukan jaminan alarm saat tab tertutup, offline, atau layanan gagal.
+
+Fall baru yang committed menjadwalkan job `ReconcileFallNotifications` pada queue `notifications`. Fan-out memakai transaksi terpisah; hanya Admin/Perawat aktif menerima satu notifikasi per insiden. Rekonsiliasi setiap menit mencari pending yang belum terkirim, termasuk untuk staf baru/aktif kembali. Jika insiden sudah ditangani sebelum fan-out, notifikasi baru boleh dilewati. Retry tidak menjadikan row yang sudah dibaca sebagai unread kembali. Transisi penanganan tetap melalui jurnal Phase 6 tanpa notifikasi tambahan. Jalur keselamatan staf tidak dibatasi kelas, benefit keluarga, kamera aktif sekarang, atau pembayaran.
+
+Setelah memverifikasi environment, koneksi, database, dan migration aditif pada instalasi lokal, proses berikut dapat dijalankan di terminal terpisah:
+
+~~~powershell
+& $php artisan queue:work database --queue=notifications --tries=3 --timeout=20
+& $php artisan schedule:work
+~~~
+
+Worker harus mendengarkan queue `notifications`; worker yang hanya mendengarkan `default` tidak memproses job ini. Rekonsiliasi `silansia:reconcile-notifications --limit=100` (batas 1–500) berjalan langsung dari scheduler dengan mutex dua menit. Perintah ini menulis inbox, bukan pemeriksaan read-only. Kegagalan enqueue/delivery tidak membatalkan commit sumber; pending dapat dipulihkan rekonsiliasi. Tanpa outbox tidak ada jaminan cohort penerima saat kejadian atau pemulihan notifikasi yang sudah ditangani sebelum fan-out. Proses worker/scheduler pengembangan tidak diaktifkan otomatis oleh implementasi.
+
+Migration `2026_11_10_000007_harden_staff_notifications.php` menambah CHECK FK insiden dan partial UNIQUE recipient/kind/insiden khusus `silansia.fall_pending.v1`, tanpa tabel/kolom baru atau perubahan data legacy. Gunakan domain writer, bukan native `notify()` yang tidak mengisi FK insiden top-level. Resource hanya mengirim pesan statis, waktu, dan konteks/tautan insiden tervalidasi tanpa raw payload privat. Notifikasi keluarga/gait ditunda sampai ownership historis, Portal, dan billing/entitlement siap.
+
+Jangan menjalankan `tests/Support/notification-worker.php` langsung; worker tes dan queue nyata dibatasi DB acak owned runner. Tes polling Node, HTTP/Inertia, concurrency, queue retry, dan build berbeda dari smoke browser atau verifikasi produksi. Hasil aktual: [laporan Phase 7](docs/report/SILANSIA_PHASE_7_REPORT.md); rancangan historis: [audit Phase 7](docs/report/SILANSIA_PHASE_7_AUDIT_REPORT.md).

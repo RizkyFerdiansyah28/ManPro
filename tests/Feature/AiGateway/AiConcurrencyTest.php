@@ -258,6 +258,9 @@ class AiConcurrencyTest extends TestCase
             }
             $this->guard();
             $eventIds = AiDetection::whereIn('camera_id', $this->cameraIds)->pluck('id')->all();
+            // Phase 7 dapat mengisi inbox sesudah commit; cleanup tetap dibatasi fixture owned.
+            $this->guard();
+            DB::table('notifications')->whereIn('fall_incident_id', FallIncident::whereIn('ai_detection_id', $eventIds)->pluck('id'))->delete();
             foreach ([[FallIncident::class, 'ai_detection_id', $eventIds], [GaitObservation::class, 'ai_detection_id', $eventIds],
                 [AiDetection::class, 'id', $eventIds], [CameraOperatingPeriod::class, 'camera_id', $this->cameraIds],
                 [Camera::class, 'id', $this->cameraIds], [ElderlyStay::class, 'elderly_id', $this->elderlyIds],

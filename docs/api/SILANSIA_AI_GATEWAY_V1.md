@@ -1,6 +1,6 @@
 # Kontrak Web Gateway AI Silansia v1
 
-Kontrak batas aplikasi web yang disetujui untuk Phase 4B. Integrasi dengan model nyata belum dilakukan. Tidak ada inference, akses kamera, streaming, frame/video, atau notifikasi dalam gateway ini.
+Kontrak batas aplikasi web yang disetujui untuk Phase 4B. Integrasi dengan model nyata belum dilakukan. Tidak ada inference, akses kamera, streaming, atau frame/video. Phase 7 menambahkan job notifikasi staf sesudah commit sebagai proses internal terpisah; payload, autentikasi, idempotensi, dan respons kontrak v1 tetap sama.
 
 ## Status dan konfigurasi
 
@@ -104,7 +104,7 @@ Event periode lama yang sah dapat diterima meskipun kamera sekarang nonaktif, pi
 
 ## Persistence dan atribusi
 
-Fall membuat satu ai_detection dan satu fall_incident pending dalam satu transaksi. Identitas/responder/acknowledgement/verifier/resolution/notes tetap NULL. VIP satu penghuni pun tidak otomatis diidentifikasi atau diverifikasi. Tidak membuat/mengirim notifikasi.
+Fall membuat satu ai_detection dan satu fall_incident pending dalam satu transaksi. Identitas/responder/acknowledgement/verifier/resolution/notes tetap NULL. VIP satu penghuni pun tidak otomatis diidentifikasi atau diverifikasi. Tidak menulis inbox dalam transaksi sumber. Sejak Phase 7, fall baru mendaftarkan job notifikasi staf sesudah outer commit; kegagalan enqueue/delivery tidak membatalkan keberhasilan ingestion. Respons accepted bukan bukti notifikasi telah dikirim/dibaca. Pending yang belum terkirim dipulihkan oleh rekonsiliasi; notifikasi keluarga/gait belum dibuat. Lihat [operasi Phase 7](../../README.md#notifikasi-staf--phase-7).
 
 Gait menyimpan salah satu kategori existing. Kamar shared selalu elderly_id NULL/identity_basis unknown. VIP hanya menggunakan vip_room_single_resident jika snapshot VIP/private/capacity 1, tepat satu stay historis, dan tepat satu enrollment historis yang cocok kelas pada waktu event. Jika kosong/ambigu/overlap/tidak cocok, simpan room-level unknown. Tidak memakai pengenalan wajah/biometrik.
 

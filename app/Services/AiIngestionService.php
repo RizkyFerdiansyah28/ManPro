@@ -12,6 +12,7 @@ use App\Models\Room;
 use App\Models\ServiceClass;
 use App\Models\ServiceEnrollment;
 use App\Support\AiGateway\EventPayload;
+use App\Support\NotificationDispatch;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -104,7 +105,8 @@ class AiIngestionService
                 }
                 $event = AiDetection::findOrFail($id);
                 if ($v['event_type'] === 'fall') {
-                    $event->fallIncident()->create([]); // Pending tanpa identitas/verifikasi/notifikasi.
+                    $incident = $event->fallIncident()->create([]); // Pending tanpa identitas/verifikasi.
+                    NotificationDispatch::afterCommit($incident->id);
                 } else {
                     $elderlyId = null;
                     if ($period->room_type === 'private' && $period->room_capacity === 1

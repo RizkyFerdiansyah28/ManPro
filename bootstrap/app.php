@@ -55,7 +55,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
             if (! $request->expectsJson() && in_array($status, [403, 404, 409, 419, 429, 500, 503], true)) {
                 $errorFactory = Inertia::getFacadeRoot();
-                if ($request->is('monitoring/*', 'admin', 'perawat')) {
+                if ($request->is('monitoring/*', 'notifications', 'notifications/*', 'admin', 'perawat')) {
                     // Response error tidak perlu memantulkan query asing/privat.
                     // Clone mencegah resolver ini memengaruhi response/worker berikutnya.
                     $errorFactory = clone $errorFactory;

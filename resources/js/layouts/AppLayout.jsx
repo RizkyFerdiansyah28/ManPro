@@ -1,5 +1,6 @@
 import { Link, useForm, usePage } from '@inertiajs/react';
 import Brand from '../components/Brand';
+import NotificationBell from '../components/Notifications/NotificationBell';
 
 const roles = { admin: 'Admin', perawat: 'Perawat', keluarga: 'Keluarga' };
 
@@ -29,6 +30,7 @@ export default function AppLayout({ children }) {
                         <button type="button" onClick={() => logout.post('/logout')} disabled={logout.processing} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-50 focus-visible:ring-4 focus-visible:ring-emerald-100 disabled:opacity-50">{logout.processing ? 'Keluar…' : 'Keluar'}</button>
                     </div>
                 </div>
+                {['admin', 'perawat'].includes(user.role) && <NotificationBell actorId={user.id} />}
             </header>
             <main id="main-content" className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-12">
                 {flash?.status && <div role="status" className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900">{flash.status}</div>}

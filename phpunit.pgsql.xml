@@ -13,6 +13,7 @@
             <directory>tests/Feature/AiGateway</directory>
             <directory>tests/Feature/Monitoring</directory>
             <directory>tests/Feature/Incidents</directory>
+            <directory>tests/Feature/Notifications</directory>
         </testsuite>
     </testsuites>
     <source><include><directory>app</directory></include></source>

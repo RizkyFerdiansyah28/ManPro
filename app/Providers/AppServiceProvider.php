@@ -6,6 +6,7 @@ use App\Models\Camera;
 use App\Models\Elderly;
 use App\Models\ElderlyStay;
 use App\Models\FallIncident;
+use App\Models\Notification;
 use App\Models\Room;
 use App\Models\ServiceClass;
 use App\Models\ServiceEnrollment;
@@ -14,6 +15,7 @@ use App\Policies\CameraPolicy;
 use App\Policies\ElderlyPolicy;
 use App\Policies\ElderlyStayPolicy;
 use App\Policies\FallIncidentPolicy;
+use App\Policies\NotificationPolicy;
 use App\Policies\RoomPolicy;
 use App\Policies\ServiceClassPolicy;
 use App\Policies\ServiceEnrollmentPolicy;
@@ -41,6 +43,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::define('viewMonitoring', fn (User $user) => $user->is_active && in_array($user->role, ['admin', 'perawat'], true));
         Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(Notification::class, NotificationPolicy::class);
+        Gate::define('viewNotifications', fn (User $user) => (new NotificationPolicy)->viewAny($user));
         Gate::policy(FallIncident::class, FallIncidentPolicy::class);
         Gate::policy(Camera::class, CameraPolicy::class);
         Gate::policy(Elderly::class, ElderlyPolicy::class);
@@ -49,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ServiceClass::class, ServiceClassPolicy::class);
         Gate::policy(Room::class, RoomPolicy::class);
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(30)->by('login|'.$request->ip()));
+        RateLimiter::for('notification-summary', fn (Request $request) => Limit::perMinute(60)->by('notifications|'.$request->user()->id));
         RateLimiter::for('admin-password-reset', fn (Request $request) => Limit::perMinute(6)->by('reset|'.$request->user()->id));
     }
 }
