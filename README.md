@@ -34,7 +34,7 @@ Jalankan sendiri setelah meninjau implementasi dan menyetujui pembuatan akun:
 & $php artisan silansia:bootstrap-admin
 ~~~
 
-Command meminta nama, email, kata sandi tersembunyi, dan konfirmasi. Kata sandi minimal 12 karakter, mencakup huruf besar/kecil dan angka, maksimal 72 byte. Command tidak menerima kata sandi lewat argumen, tidak menyediakan kredensial bawaan, dan menolak mode noninteraktif maupun bootstrap kedua bila Admin sudah ada. Input tersembunyi memerlukan terminal yang mendukung; kegagalan tidak beralih ke input kata sandi terbuka.
+Command meminta nama, email, kata sandi tersembunyi, dan konfirmasi. Kata sandi baru minimal 8 karakter, mencakup huruf besar/kecil dan angka, maksimal 72 byte. Ketentuan yang sama berlaku pada pembuatan akun dan reset password oleh Admin. Command tidak menerima kata sandi lewat argumen, tidak menyediakan kredensial bawaan, dan menolak mode noninteraktif maupun bootstrap kedua bila Admin sudah ada. Input tersembunyi memerlukan terminal yang mendukung; kegagalan tidak beralih ke input kata sandi terbuka.
 
 Bootstrap Admin tidak dijalankan otomatis. Bila Admin belum tersedia, lakukan bootstrap secara manual. Buka /login, lalu Admin membuat akun perawat/keluarga melalui /admin/accounts/create. Akun baru nonaktif; sampaikan kredensial secara aman lalu aktifkan melalui daftar akun.
 
@@ -217,3 +217,17 @@ Worker harus mendengarkan queue `notifications`; worker yang hanya mendengarkan 
 Migration `2026_11_10_000007_harden_staff_notifications.php` menambah CHECK FK insiden dan partial UNIQUE recipient/kind/insiden khusus `silansia.fall_pending.v1`, tanpa tabel/kolom baru atau perubahan data legacy. Gunakan domain writer, bukan native `notify()` yang tidak mengisi FK insiden top-level. Resource hanya mengirim pesan statis, waktu, dan konteks/tautan insiden tervalidasi tanpa raw payload privat. Notifikasi keluarga/gait ditunda sampai ownership historis, Portal, dan billing/entitlement siap.
 
 Jangan menjalankan `tests/Support/notification-worker.php` langsung; worker tes dan queue nyata dibatasi DB acak owned runner. Tes polling Node, HTTP/Inertia, concurrency, queue retry, dan build berbeda dari smoke browser atau verifikasi produksi. Hasil aktual: [laporan Phase 7](docs/report/SILANSIA_PHASE_7_REPORT.md); rancangan historis: [audit Phase 7](docs/report/SILANSIA_PHASE_7_AUDIT_REPORT.md).
+
+## Portal dasar keluarga — Phase 8
+
+Keluarga aktif membuka `/keluarga` untuk ringkasan lansia miliknya, `/keluarga/residents` untuk pencarian/status dan pagination 15/30/50, lalu detail UUID untuk biodata dan layanan saat ini. Admin/Perawat tetap tidak dapat memakai route keluarga. Tidak ada edit mandiri atau mutator keluarga baru.
+
+Ownership, biodata dan layanan dibaca dalam satu snapshot statement PostgreSQL. Enrollment boleh ada tanpa stay. Interval masa depan/ambigu, kelas tidak cocok, kapasitas tidak sah/terlampaui, atau konfigurasi manfaat menyimpang ditandai perlu pemeriksaan; detail layanan yang meragukan disembunyikan. Biodata tetap dapat dibaca pemilik yang sah. Master kamar/kelas nonaktif tidak otomatis mengakhiri record berjalan. Label nama mengikuti master sekarang, bukan snapshot nama historis.
+
+Tarif berasal dari snapshot enrollment yang sah dan sedang berlaku, bukan tarif kelas terbaru atau nominal tagihan. NULL berarti belum tercatat; nilai nol yang sengaja dikonfigurasi tetap nol. Katalog manfaat final ditampilkan terpisah dari ketersediaan fitur. Histori insiden, laporan gait, notifikasi keluarga, invoice/payment/bukti, enforcement billing dan live CCTV tetap ditunda. Tidak ada angka keselamatan/perangkat online atau status lunas buatan.
+
+Sesudah transfer committed, request baru keluarga lama ditolak untuk lansia yang dipindahkan; lansia lainnya tetap dapat dibaca. Keluarga baru dapat membaca kondisi layanan kini termasuk snapshot tarif, tanpa histori sebelum transfer. Response yang sudah mengambil snapshot sebelum transfer dapat selesai memakai snapshot lama; data yang sudah diterima browser tidak dapat ditarik kembali. Sesi seluruh keluarga tidak ditutup akibat transfer. No-store, autentikasi, revocation, scope actor dan input/URL allowlist tetap berlaku.
+
+Pembaruan portal memakai tombol manual tanpa polling staf. Halaman Family dimuat sebagai chunk terpisah. Tidak ada migration/seeder/sinkronisasi atau perubahan data development dalam fase ini. Worker `tests/Support/family-portal-worker.php` hanya untuk HTTP concurrency tests pada DB owned runner, jangan dijalankan langsung.
+
+Rancangan historis: [audit Phase 8](docs/report/SILANSIA_PHASE_8_AUDIT_REPORT.md). Hasil aktual, batas browser dan smoke test: [laporan Phase 8](docs/report/SILANSIA_PHASE_8_REPORT.md).

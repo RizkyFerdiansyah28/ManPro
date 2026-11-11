@@ -49,13 +49,34 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($exception instanceof AiGatewayException) {
                 return $response;
             }
+            if ($request->expectsJson() && $request->is('keluarga', 'keluarga/*')
+                && in_array($status, [401, 403, 404, 405, 409, 419, 429, 500, 503], true)) {
+                $message = match ($status) {
+                    401 => 'Silakan masuk untuk melanjutkan.',
+                    403 => 'Akses dibatasi.',
+                    404 => 'Halaman tidak ditemukan.',
+                    405 => 'Metode permintaan tidak diizinkan.',
+                    419 => 'Sesi telah berakhir.',
+                    429 => 'Terlalu banyak permintaan. Coba kembali nanti.',
+                    default => 'Informasi belum dapat diproses. Silakan coba kembali.',
+                };
+                $error = response()->json(['message' => $message], $status)->header('Cache-Control', 'no-store, private');
+                foreach (['Allow', 'Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'] as $header) {
+                    if ($response->headers->has($header)) {
+                        $error->headers->set($header, $response->headers->get($header));
+                    }
+                }
+
+                return $error;
+            }
             if (($request->expectsJson() || $request->is('api/*')) && in_array($status, [500, 503], true)) {
                 return response()->json(['message' => 'Layanan sedang bermasalah. Silakan coba kembali nanti.'], $status)
                     ->header('Cache-Control', 'no-store, private');
             }
-            if (! $request->expectsJson() && in_array($status, [403, 404, 409, 419, 429, 500, 503], true)) {
+            if (! $request->expectsJson() && (in_array($status, [403, 404, 409, 419, 429, 500, 503], true)
+                || ($status === 405 && $request->is('keluarga', 'keluarga/*')))) {
                 $errorFactory = Inertia::getFacadeRoot();
-                if ($request->is('monitoring/*', 'notifications', 'notifications/*', 'admin', 'perawat')) {
+                if ($request->is('monitoring/*', 'notifications', 'notifications/*', 'keluarga', 'keluarga/*', 'admin', 'perawat')) {
                     // Response error tidak perlu memantulkan query asing/privat.
                     // Clone mencegah resolver ini memengaruhi response/worker berikutnya.
                     $errorFactory = clone $errorFactory;
@@ -63,7 +84,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 }
                 $error = $errorFactory->render('Error', ['status' => $status])->toResponse($request)->setStatusCode($status);
                 $error->headers->set('Cache-Control', 'no-store, private');
-                foreach (['Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'] as $header) {
+                foreach (['Allow', 'Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'] as $header) {
                     if ($response->headers->has($header)) {
                         $error->headers->set($header, $response->headers->get($header));
                     }

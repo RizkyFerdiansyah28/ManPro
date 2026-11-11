@@ -23,7 +23,7 @@ class BootstrapAdminTest extends PostgresFeatureTestCase
         $this->artisan('silansia:bootstrap-admin')
             ->expectsQuestion('Nama Admin', 'Admin Uji')
             ->expectsQuestion('Email Admin', '  ADMIN.UJI@example.test  ')
-            ->expectsQuestion('Kata sandi (minimal 12 karakter, huruf besar/kecil dan angka)', self::PASSWORD)
+            ->expectsQuestion('Kata sandi (minimal 8 karakter, huruf besar/kecil dan angka)', self::PASSWORD)
             ->expectsQuestion('Konfirmasi kata sandi', self::PASSWORD)
             ->doesntExpectOutputToContain(self::PASSWORD)
             ->expectsOutputToContain('Admin awal berhasil dibuat')->assertSuccessful();
@@ -54,11 +54,42 @@ class BootstrapAdminTest extends PostgresFeatureTestCase
         $this->artisan('silansia:bootstrap-admin')
             ->expectsQuestion('Nama Admin', 'Admin Uji')
             ->expectsQuestion('Email Admin', $email)
-            ->expectsQuestion('Kata sandi (minimal 12 karakter, huruf besar/kecil dan angka)', $password)
+            ->expectsQuestion('Kata sandi (minimal 8 karakter, huruf besar/kecil dan angka)', $password)
             ->expectsQuestion('Konfirmasi kata sandi', $confirmation)
             ->doesntExpectOutputToContain($password)->assertFailed();
         $this->assertDatabaseCount('users', 1);
         $this->assertSame($before, $existing->fresh()->getAttributes());
         $this->assertFalse(User::where('role', 'admin')->exists());
+    }
+
+    public static function passwordBoundaries(): array
+    {
+        return ['seven' => ['Abc1234', false], 'eight' => ['Abc12345', true],
+            'longer' => ['Aa1'.str_repeat('x', 69), true]];
+    }
+
+    #[DataProvider('passwordBoundaries')]
+    public function test_bootstrap_password_length_boundaries_preserve_existing_accounts(string $password, bool $accepted): void
+    {
+        $existing = $this->account('keluarga');
+        $before = $existing->fresh()->getAttributes();
+        $command = $this->artisan('silansia:bootstrap-admin')
+            ->expectsQuestion('Nama Admin', 'Admin Fixture')
+            ->expectsQuestion('Email Admin', 'bootstrap-boundary@example.test')
+            ->expectsQuestion('Kata sandi (minimal 8 karakter, huruf besar/kecil dan angka)', $password)
+            ->expectsQuestion('Konfirmasi kata sandi', $password)->doesntExpectOutputToContain($password);
+        if (! $accepted) {
+            $command->expectsOutputToContain('Kata sandi minimal 8 karakter.')->assertFailed()->run();
+            $this->assertDatabaseCount('users', 1);
+            $this->assertFalse(User::where('role', 'admin')->exists());
+        } else {
+            $command->expectsOutputToContain('Admin awal berhasil dibuat')->assertSuccessful()->run();
+            $admin = User::where('role', 'admin')->sole();
+            $this->assertTrue($admin->is_active);
+            $this->assertTrue(Str::isUuid($admin->id));
+            $this->assertTrue(Hash::check($password, $admin->password));
+            $this->assertNotSame($password, $admin->password);
+        }
+        $this->assertSame($before, $existing->fresh()->getAttributes());
     }
 }

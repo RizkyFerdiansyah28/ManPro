@@ -9,7 +9,7 @@ final class AccountPassword
 {
     public static function rules(): array
     {
-        return [...self::inputRules(), 'confirmed', Password::min(12)->mixedCase()->numbers()];
+        return [...self::inputRules(), 'confirmed', Password::min(8)->mixedCase()->numbers()];
     }
 
     public static function inputRules(): array
@@ -33,7 +33,7 @@ final class AccountPassword
             'password.string' => 'Kata sandi harus berupa teks.',
             'password.confirmed' => 'Konfirmasi kata sandi tidak cocok.',
             'password.max' => 'Kata sandi maksimal 72 karakter dan 72 byte.',
-            'password.min' => 'Kata sandi minimal 12 karakter.',
+            'password.min' => 'Kata sandi minimal 8 karakter.',
             'password.password.mixed' => 'Gunakan huruf besar dan kecil pada kata sandi.',
             'password.password.numbers' => 'Sertakan angka pada kata sandi.',
         ];

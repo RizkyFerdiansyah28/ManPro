@@ -41,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::define('viewFamilyPortal', fn (User $user) => $user->is_active && $user->role === 'keluarga');
         Gate::define('viewMonitoring', fn (User $user) => $user->is_active && in_array($user->role, ['admin', 'perawat'], true));
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Notification::class, NotificationPolicy::class);

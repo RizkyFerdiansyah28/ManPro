@@ -5,6 +5,7 @@ namespace Tests\Feature\Authentication;
 use App\Models\User;
 use App\Services\AccountService;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -85,7 +86,8 @@ class AccountManagementTest extends PostgresFeatureTestCase
         return ['short' => ['Abc12', 'Abc12'], 'no uppercase' => ['hurufkecil12345', 'hurufkecil12345'],
             'no number' => ['TanpaAngkaDisini', 'TanpaAngkaDisini'], 'confirmation' => [self::PASSWORD, 'Berbeda123456'],
             'over byte limit' => ['Aa1'.str_repeat('é', 36), 'Aa1'.str_repeat('é', 36)],
-            'null byte' => ["Password\0Aman123", "Password\0Aman123"]];
+            'null byte' => ["Password\0Aman123", "Password\0Aman123"],
+            'eight without lowercase' => ['ABC12345', 'ABC12345']];
     }
 
     #[DataProvider('invalidPasswords')]
@@ -258,5 +260,84 @@ class AccountManagementTest extends PostgresFeatureTestCase
         $this->post("/admin/accounts/{$target->id}/password", ['current_password' => self::PASSWORD,
             'password' => 'PenggantiBenar123', 'password_confirmation' => 'PenggantiBenar123'])->assertStatus(429);
         $this->assertTrue(Hash::check(self::PASSWORD, $target->fresh()->password));
+    }
+
+    public static function passwordBoundaries(): array
+    {
+        $cases = [];
+        foreach (['perawat', 'keluarga'] as $role) {
+            foreach ([7 => ['Abc1234', false], 8 => ['Abc12345', true], 72 => ['Aa1'.str_repeat('x', 69), true]] as $length => [$password, $accepted]) {
+                $cases[$role.' '.$length.' characters'] = [$role, $password, $accepted];
+            }
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('passwordBoundaries')]
+    public function test_new_password_length_boundaries_and_login(string $role, string $password, bool $accepted): void
+    {
+        $admin = $this->account();
+        $before = $admin->fresh()->getAttributes();
+        $response = $this->actingAs($admin)->post('/admin/accounts/'.$role, $this->accountPayload([
+            'password' => $password, 'password_confirmation' => $password,
+        ]));
+        if (! $accepted) {
+            $response->assertSessionHasErrors(['password' => 'Kata sandi minimal 8 karakter.'])
+                ->assertSessionMissing('_old_input.password')->assertSessionMissing('_old_input.password_confirmation');
+            $this->assertDatabaseCount('users', 1);
+        } else {
+            $response->assertSessionHasNoErrors()->assertRedirect('/admin/accounts');
+            $created = User::where('email', 'baru@example.test')->sole();
+            $this->assertSame($role, $created->role);
+            $this->assertFalse($created->is_active);
+            $this->assertTrue(Hash::check($password, $created->password));
+            $this->assertNotSame($password, $created->password);
+            // Hanya fixture DB runner: aktivasi agar password delapan karakter diuji pada login juga.
+            $created->forceFill(['is_active' => true])->save();
+            Auth::forgetGuards();
+            session()->flush();
+            $this->post('/login', ['email' => $created->email, 'password' => $password])->assertRedirect('/'.$role);
+            $this->assertAuthenticatedAs($created);
+        }
+        $this->assertSame($before, $admin->fresh()->getAttributes());
+    }
+
+    #[DataProvider('passwordBoundaries')]
+    public function test_reset_password_length_boundaries_keep_other_accounts_and_revoke_only_target(string $role, string $password, bool $accepted): void
+    {
+        config(['session.driver' => 'database']);
+        $admin = $this->account();
+        $target = $this->account($role, false);
+        $other = $this->account('keluarga');
+        $before = $target->fresh()->getAttributes();
+        $otherBefore = $other->fresh()->getAttributes();
+        foreach (['pw8-target' => $target, 'pw8-other' => $other] as $id => $user) {
+            DB::table('sessions')->insert(['id' => $id, 'user_id' => $user->id,
+                'payload' => base64_encode(json_encode([])), 'last_activity' => time()]);
+        }
+        DB::table('password_reset_tokens')->insert(['email' => $target->email, 'token' => 'fixture-reset-token']);
+        $response = $this->actingAs($admin)->post('/admin/accounts/'.$target->id.'/password', [
+            'current_password' => self::PASSWORD, 'password' => $password, 'password_confirmation' => $password,
+        ]);
+        if (! $accepted) {
+            $response->assertSessionHasErrors(['password' => 'Kata sandi minimal 8 karakter.'])
+                ->assertSessionMissing('_old_input.password')->assertSessionMissing('_old_input.current_password');
+            $this->assertSame($before, $target->fresh()->getAttributes());
+            $this->assertDatabaseHas('sessions', ['id' => 'pw8-target', 'user_id' => $target->id]);
+            $this->assertDatabaseHas('password_reset_tokens', ['email' => $target->email]);
+        } else {
+            $response->assertSessionHasNoErrors()->assertRedirect('/admin/accounts');
+            $updated = $target->fresh();
+            $this->assertTrue(Hash::check($password, $updated->password));
+            $this->assertNotSame($password, $updated->password);
+            $this->assertSame($role, $updated->role);
+            $this->assertFalse($updated->is_active);
+            $this->assertNotSame($before['remember_token'], $updated->remember_token);
+            $this->assertDatabaseMissing('sessions', ['user_id' => $target->id]);
+            $this->assertDatabaseMissing('password_reset_tokens', ['email' => $target->email]);
+        }
+        $this->assertSame($otherBefore, $other->fresh()->getAttributes());
+        $this->assertDatabaseHas('sessions', ['id' => 'pw8-other', 'user_id' => $other->id]);
     }
 }

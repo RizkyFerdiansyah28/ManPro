@@ -129,6 +129,16 @@ Inbox/summary hanya membaca milik Admin/Perawat aktif berdasarkan morph+recipien
 
 Tes baru memakai fixture committed, worker lintas proses/queue nyata, dan cleanup scoped pada DB runner; baseline penuh diperiksa kembali. Tidak ada fixture/catch-up/notifikasi baru pada database pengembangan dalam verifikasi ini. Hasil dan keterbatasan: [laporan Phase 7](../report/SILANSIA_PHASE_7_REPORT.md).
 
+## Portal dasar keluarga Phase 8
+
+Tidak ada perubahan schema, migration, ownership history, snapshot benefit, materialized report, billing evaluator atau data existing. FamilyPortalReadService membaca eligible user aktif role keluarga, owned residents, waktu statement, interval efektif, canonical class, summary dan pagination dalam satu SELECT CTE. Query tidak mengambil catatan insiden, payload notifikasi/AI, sumber kamera, invoice/payment atau data penghuni lain sebagai props. Agregat okupansi kamar hanya dipakai untuk mendeteksi data layanan tidak konsisten, tidak diekspos.
+
+Konteks layanan sah memerlukan record terbuka yang telah mulai, tidak bertabrakan dengan interval efektif lain, tidak mempunyai future history, serta kelas kamar/enrollment yang cocok. Snapshot tarif nullable tetap string desimal; canonical benefits adalah metadata aturan, bukan grant premium. Anomali menutup detail layanan, tanpa mengubah data atau menolak profil sendiri. Model/layanan Admin dan aturan keselamatan tidak diubah.
+
+Transfer existing tidak diberi backfill. Response dengan snapshot sebelum transfer commit boleh selesai memakai data lama; request sesudah commit wajib mengikuti current owner. Tests memeriksa snapshot ini dengan HTTP worker/PID PostgreSQL terpisah dan checkpoint sesudah SELECT, lalu commit transfer sebelum serialisasi response. Fixture/cleanup tetap di DB acak owned runner; environment/cache/connection worker diverifikasi dan sesi/cache memakai array. Suite/child guards existing dan tujuh migration domain tetap.
+
+FamilyResidentResource hanya memproyeksikan profil, current service dan katalog yang sah. Unknown query/field ditolak, pagination dibentuk dari filter tervalidasi, error URL keluarga dibersihkan dan validasi tidak mem-flash input asing. Data ownership/AI/history/harga/kamar/billing/notifikasi development tidak ditulis. Histori keluarga dan additional benefits tetap memerlukan fase ownership/Billing yang disetujui. Hasil aktual: [laporan Phase 8](../report/SILANSIA_PHASE_8_REPORT.md).
+
 ## Kontrak AI sementara
 
 `ai_detections` adalah envelope: `camera_id`, `external_event_id` unik global, `event_type`, `occurred_at`, `received_at`, serta confidence/metadata opsional. `gait_observations` menyimpan kategori dan asumsi identitas; kamera/waktu/ID eksternal diperoleh melalui `aiDetection`, tanpa menduplikasi kolom. `fall_incidents` menyimpan respons dan verifikasi manusia secara terpisah dari deteksi.

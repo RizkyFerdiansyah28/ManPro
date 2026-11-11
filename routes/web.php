@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ResidentOperationsController;
 use App\Http\Controllers\Admin\RoomController;
 use App\Http\Controllers\Admin\ServiceClassController;
 use App\Http\Controllers\Auth\SessionController;
+use App\Http\Controllers\Family\DashboardController as FamilyDashboardController;
 use App\Http\Controllers\Family\ResidentController as FamilyResidentController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Monitoring\IncidentActionController;
@@ -101,7 +102,7 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     });
 
     Route::get('/perawat', [MonitoringDashboardController::class, 'caregiver'])->middleware(['role:perawat', 'can:viewMonitoring'])->name('perawat.home');
-    Route::get('/keluarga', [HomeController::class, 'show'])->middleware('role:keluarga')->name('keluarga.home');
+    Route::get('/keluarga', FamilyDashboardController::class)->middleware('role:keluarga')->name('keluarga.home');
     Route::prefix('keluarga/residents')->name('keluarga.residents.')->middleware('role:keluarga')->group(function () {
         Route::get('/', [FamilyResidentController::class, 'index'])->name('index');
         Route::get('/{elderly}', [FamilyResidentController::class, 'show'])->name('show');

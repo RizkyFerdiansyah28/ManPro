@@ -73,10 +73,11 @@ class FamilyResidentAccessTest extends PostgresFeatureTestCase
         $this->useAccount($family);
         DB::enableQueryLog();
         $this->get("/keluarga/residents/{$foreign->id}")->assertNotFound();
-        $queries = collect(DB::getQueryLog())->filter(fn ($entry) => str_contains($entry['query'], 'from "elderlies"'));
+        $queries = collect(DB::getQueryLog())->filter(fn ($entry) => str_contains($entry['query'], 'owned AS MATERIALIZED'));
         $this->assertNotEmpty($queries);
         foreach ($queries as $entry) {
-            $this->assertStringContainsString('"family_id" = ?', $entry['query']);
+            $this->assertStringContainsString("WHERE id=? AND role='keluarga' AND is_active", $entry['query']);
+            $this->assertStringContainsString('JOIN eligible u ON u.id=e.family_id', $entry['query']);
             $this->assertContains($family->id, $entry['bindings']);
         }
         DB::disableQueryLog();

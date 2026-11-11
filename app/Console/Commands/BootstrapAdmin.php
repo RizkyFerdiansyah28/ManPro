@@ -33,7 +33,7 @@ class BootstrapAdmin extends Command
             $data = [
                 'name' => trim((string) $this->ask('Nama Admin')),
                 'email' => Str::lower(trim((string) $this->ask('Email Admin'))),
-                'password' => $this->secret('Kata sandi (minimal 12 karakter, huruf besar/kecil dan angka)', false),
+                'password' => $this->secret('Kata sandi (minimal 8 karakter, huruf besar/kecil dan angka)', false),
                 'password_confirmation' => $this->secret('Konfirmasi kata sandi', false),
             ];
             $validator = Validator::make($data, [
