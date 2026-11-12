@@ -1,24 +1,34 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
-import { FamilyServiceStatus } from '../../components/Family/FamilyServiceSummary';
+import EmptyState from '../../components/ui/EmptyState';
+import FamilyPageHeader from '../../components/Family/FamilyPageHeader';
+import FamilyResidentCard from '../../components/Family/FamilyResidentCard';
 import FamilyRefresh from '../../components/Family/FamilyRefresh';
 
 export default function Dashboard({ summary, residents, as_of }) {
     const { auth } = usePage().props;
-    const cards = [['residents', 'Lansia terkait'], ['active_residents', 'Lansia berstatus aktif'], ['staying', 'Masa tinggal tercatat'], ['enrolled', 'Enrollment tercatat'], ['needs_review', 'Layanan perlu pemeriksaan']];
+    const counts = [['residents', 'Lansia terkait'], ['active_residents', 'Lansia aktif administratif'], ['staying', 'Masa tinggal tercatat'], ['enrolled', 'Layanan tercatat'], ['needs_review', 'Informasi perlu diperiksa']];
     return <AppLayout><Head title="Beranda Keluarga · Silansia" />
-        <p className="text-xs font-semibold uppercase tracking-widest text-emerald-800">Beranda Keluarga</p>
-        <h1 className="mt-3 text-3xl font-bold">Selamat datang, {auth.user.name}.</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">Informasi lansia yang saat ini terhubung dengan akun Anda. Data layanan dibaca saat halaman dimuat; ini bukan pemantauan kondisi secara langsung.</p>
-        <FamilyRefresh asOf={as_of} />
-        <section aria-label="Ringkasan lansia Anda" className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{cards.map(([key, title]) => <div key={key} className="rounded-2xl border border-slate-200 bg-white p-6"><h2 className="text-sm text-slate-600">{title}</h2><p className="mt-3 text-3xl font-semibold">{summary[key]}</p></div>)}</section>
-        {summary.needs_review > 0 && <p className="mt-5 rounded-xl bg-amber-50 p-5 text-sm leading-7 text-amber-950">Sebagian informasi layanan perlu diperiksa Admin. Jumlah masa tinggal/enrollment di atas hanya mencakup informasi yang dapat dipastikan.</p>}
-        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6">
-            <div className="flex flex-wrap justify-between gap-4"><h2 className="text-lg font-semibold">Lansia keluarga Anda</h2><Link href="/keluarga/residents" className="text-sm font-semibold text-emerald-800 hover:underline">Lihat daftar lengkap →</Link></div>
-            {residents.length ? <ul className="mt-4 divide-y divide-slate-100">{residents.map((r) => <li key={r.id} className="flex flex-wrap justify-between gap-4 py-4"><div><p className="break-words font-semibold">{r.name}</p><p className="mt-2 text-xs"><FamilyServiceStatus service={r.service} /></p></div><Link href={'/keluarga/residents/' + r.id} className="text-sm font-semibold text-emerald-800 hover:underline" aria-label={'Lihat ' + r.name}>Detail →</Link></li>)}</ul> : <p className="py-8 text-sm text-slate-500">Belum ada lansia yang terhubung dengan akun Anda. Hubungi Admin panti bila hubungan keluarga perlu diperbarui.</p>}
-            {summary.residents > residents.length && <p className="mt-4 text-xs text-slate-500">Menampilkan {residents.length} dari {summary.residents} lansia. Buka daftar lengkap untuk melihat lainnya.</p>}
-        </section>
-        <p className="mt-6 text-xs leading-6 text-slate-500">Histori insiden, laporan gait, notifikasi keluarga, pembayaran, dan live CCTV belum tersedia di portal ini.</p>
+        <div className="ui-family-page">
+            <FamilyPageHeader title={`Selamat datang, ${auth.user.name}.`} description="Lihat informasi lansia yang saat ini terhubung dengan akun Anda. Data dibaca saat halaman dimuat; halaman ini tidak menunjukkan kondisi kesehatan secara langsung." />
+            <FamilyRefresh asOf={as_of} />
+            <section className="ui-family-section ui-family-section--list" aria-labelledby="family-residents-heading">
+                <div className="ui-family-section__header">
+                    <div><h2 id="family-residents-heading">Lansia keluarga Anda</h2><p>Buka detail untuk melihat biodata, layanan, dan kamar yang tercatat.</p></div>
+                    <Link href="/keluarga/residents" className="ui-family-link">Lihat daftar lengkap</Link>
+                </div>
+                {residents.length ? <ul className="ui-family-residents">{residents.map((resident) => <FamilyResidentCard key={resident.id} resident={resident} headingLevel="h3" />)}</ul>
+                    : <EmptyState title="Belum ada lansia yang terhubung" description="Hubungi Admin panti bila hubungan keluarga perlu diperbarui. Data akan ditampilkan sesuai hubungan dengan akun Anda." />}
+                {summary.residents > residents.length && <p className="ui-family-list-note">Menampilkan {residents.length} dari {summary.residents} lansia. Buka daftar lengkap untuk melihat lainnya.</p>}
+            </section>
+            <section className="ui-family-section" aria-labelledby="family-summary-heading">
+                <h2 id="family-summary-heading">Ringkasan administratif</h2>
+                <p className="ui-family-section-description">Jumlah berikut berasal dari data yang dimuat, terpisah dari informasi kesehatan.</p>
+                <dl className="ui-family-counts">{counts.map(([key, title]) => <div key={key}><dt>{title}</dt><dd>{summary[key]}</dd></div>)}</dl>
+                {summary.needs_review > 0 && <p className="ui-family-notice ui-family-notice--warning">Sebagian informasi layanan perlu diperiksa Admin. Jumlah masa tinggal dan layanan hanya mencakup informasi yang dapat dipastikan.</p>}
+            </section>
+            <p className="ui-family-context-note">Histori insiden, laporan gait, notifikasi keluarga, pembayaran, dan live CCTV belum tersedia di portal ini. Tidak adanya data bukan bukti kondisi aman.</p>
+        </div>
     </AppLayout>;
 }
 

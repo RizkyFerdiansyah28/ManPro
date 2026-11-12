@@ -1,8 +1,35 @@
 import { Head, Link } from '@inertiajs/react';
+import { useEffect, useRef } from 'react';
 import Brand from '../components/Brand';
+import StatusBadge from '../components/ui/StatusBadge';
 
-const messages = { 405: ['Metode tidak tersedia', 'Gunakan tindakan yang tersedia pada halaman ini.'], 409: ['Data telah berubah', 'Muat ulang detail untuk melihat keadaan terkini sebelum melanjutkan.'], 403: ['Akses dibatasi', 'Akun Anda tidak memiliki izin untuk membuka halaman ini.'], 404: ['Halaman tidak ditemukan', 'Alamat yang Anda buka tidak tersedia.'], 419: ['Sesi telah berakhir', 'Muat ulang halaman atau masuk kembali untuk melanjutkan.'], 429: ['Terlalu banyak permintaan', 'Tunggu sejenak sebelum mencoba kembali.'], 500: ['Layanan sedang bermasalah', 'Silakan coba kembali nanti.'], 503: ['Layanan sedang dirawat', 'Silakan coba kembali beberapa saat lagi.'] };
+const messages = {
+    403: ['Akses dibatasi', 'Akun Anda tidak memiliki izin untuk membuka halaman ini.'],
+    404: ['Halaman tidak ditemukan', 'Alamat yang Anda buka tidak tersedia.'],
+    405: ['Metode tidak tersedia', 'Gunakan tindakan yang tersedia pada halaman ini.'],
+    409: ['Data telah berubah', 'Muat ulang detail untuk melihat keadaan terkini sebelum melanjutkan.'],
+    419: ['Sesi perlu diperbarui', 'Buka kembali beranda untuk memuat halaman dengan sesi yang berlaku.'],
+    429: ['Terlalu banyak permintaan', 'Tunggu sejenak sebelum mencoba kembali.'],
+    500: ['Layanan sedang bermasalah', 'Halaman belum dapat ditampilkan. Silakan coba kembali nanti.'],
+    503: ['Layanan belum tersedia', 'Silakan coba kembali beberapa saat lagi.'],
+};
+
 export default function Error({ status }) {
-    const [title, description] = messages[status] ?? messages[500];
-    return <main className="flex min-h-screen items-center justify-center bg-[#f5f7f5] px-5 text-slate-900"><Head title={`${title} · Silansia`} /><div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8"><Brand /><p className="mt-12 text-sm font-semibold text-emerald-700">{status}</p><h1 className="mt-3 text-2xl font-bold">{title}</h1><p className="mt-4 text-sm leading-7 text-slate-500">{description}</p><Link href="/" className="mt-8 inline-flex rounded-xl bg-emerald-800 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-900">Kembali ke beranda</Link></div></main>;
+    const known = Object.hasOwn(messages, status);
+    const [title, description] = known ? messages[status] : messages[500];
+    const heading = useRef(null);
+    useEffect(() => { heading.current?.focus(); }, [status]);
+    return <main className="ui-error-page">
+        <Head title={`${title} · Silansia`} />
+        <div className="ui-error-content">
+            <div className="ui-error-brand"><Brand /></div>
+            <section className="ui-error-panel" aria-labelledby="error-title">
+                {known && <p className="ui-error-code">Kode respons <StatusBadge tone="neutral">{Number(status)}</StatusBadge></p>}
+                <h1 id="error-title" ref={heading} tabIndex={-1}>{title}</h1>
+                <p className="ui-error-description">{description}</p>
+                {known && [409, 419, 429, 500, 503].includes(Number(status)) && <p className="ui-error-context">Jika halaman ini muncul setelah menyimpan perubahan, periksa keadaan data sebelum mengulangi tindakan.</p>}
+                <Link href="/" className="ui-button ui-button--primary">Kembali ke beranda</Link>
+            </section>
+        </div>
+    </main>;
 }
