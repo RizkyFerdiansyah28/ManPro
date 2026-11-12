@@ -1,30 +1,37 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import AppLayout from '../../layouts/AppLayout';
 import OperationPagination from '../../components/OperationPagination';
+import MonitoringSection from '../../components/Monitoring/MonitoringSection';
+import IncidentStatus from '../../components/Incidents/IncidentStatus';
+import NotificationReadAction, { notificationReadChanged } from '../../components/Notifications/NotificationReadAction';
+import Button from '../../components/ui/Button';
+import StatusBadge from '../../components/ui/StatusBadge';
+import EmptyState from '../../components/ui/EmptyState';
+import focusFormErrors from '../../utils/focusFormErrors';
 import formatMonitoringTime from '../../utils/formatMonitoringTime';
+import { notificationReadContext, submitNotificationRead } from '../../utils/notificationRead';
 
-const statuses = { pending: 'Menunggu tindak lanjut', acknowledged: 'Diakui · belum selesai', resolved: 'Selesai', false_alarm: 'Alarm palsu' };
-function changed() { window.dispatchEvent(new Event('silansia:notifications-changed')); }
-function ReadButton({ record, context }) {
-    const form = useForm(context);
-    const [error, setError] = useState('');
-    if (record.read_at) return <span className="text-xs text-slate-500">Dibaca {formatMonitoringTime(record.read_at)}</span>;
-    function submit() {
-        setError('');
-        const fail = () => { setError('Status baca belum dapat dipastikan. Muat ulang daftar atau coba kembali.'); return false; };
-        form.post(`/notifications/${record.id}/read`, { preserveScroll: true, onSuccess: changed, onNetworkError: fail, onHttpException: fail });
-    }
-    return <div><button type="button" onClick={submit} disabled={form.processing} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold disabled:opacity-50">{form.processing ? 'Menyimpan…' : 'Tandai dibaca'}</button>{error && <p role="alert" className="mt-2 text-xs text-red-800">{error}</p>}</div>;
-}
-export default function Index({ records, filters, as_of, errors }) {
+export default function Index({ records, filters, as_of, errors = {} }) {
     const [state, setState] = useState(filters.state);
     const [perPage, setPerPage] = useState(filters.per_page);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const context = { state: filters.state, per_page: filters.per_page, page: records.current_page };
+    const context = notificationReadContext(filters, records);
     const all = useForm({ ...context, confirm: false });
+    const id = useId();
+    const filterRef = useRef(null);
+    const allRef = useRef(null);
+    const summaryRef = useRef(null);
+    const allLock = useRef(false);
+    const fieldErrors = { ...errors, ...all.errors };
+    const signature = JSON.stringify(fieldErrors);
     const fail = () => { setError('Permintaan belum dapat dipastikan. Muat ulang daftar lalu coba kembali.'); return false; };
+    useEffect(() => { setState(filters.state); setPerPage(filters.per_page); }, [filters.state, filters.per_page]);
+    useEffect(() => {
+        if (!Object.keys(fieldErrors).length || all.processing || loading) return;
+        focusFormErrors(fieldErrors.confirm ? allRef.current : filterRef.current, summaryRef.current, fieldErrors);
+    }, [signature, all.processing, loading]);
     function load(event) {
         event.preventDefault();
         setError('');
@@ -32,29 +39,52 @@ export default function Index({ records, filters, as_of, errors }) {
     }
     function readAll(event) {
         event.preventDefault();
+        if (all.processing || allLock.current) return;
         setError('');
-        all.post('/notifications/read-all', { preserveScroll: true, onSuccess: () => { changed(); all.reset('confirm'); }, onNetworkError: fail, onHttpException: fail });
+        submitNotificationRead({
+            form: all, lock: allLock, onSuccess: () => { notificationReadChanged(); all.reset('confirm'); },
+            onFailure: () => { fail(); },
+        });
     }
     return <AppLayout><Head title="Notifikasi saya · Silansia" />
-        <header className="mb-8"><h1 className="text-3xl font-bold">Notifikasi saya</h1><p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">Pemberitahuan dugaan jatuh untuk staf. Membaca notifikasi tidak mengakui atau menyelesaikan insiden. Status penanganan dapat berubah setelah notifikasi dibuat.</p><p className="mt-3 text-xs text-slate-500">Daftar dimuat {formatMonitoringTime(as_of)}. Gunakan muat ulang untuk memperbarui daftar; ringkasan di atas diperbarui terpisah.</p></header>
-        {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
-        {Object.values(errors || {}).length > 0 && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">{Object.values(errors).map((message, i) => <p key={i}>{message}</p>)}</div>}
-        <form onSubmit={load} className="mb-5 flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5">
-            <label className="text-sm">Status baca<select value={state} onChange={(e) => setState(e.target.value)} className="mt-2 block rounded-lg border border-slate-300 p-2"><option value="all">Semua</option><option value="unread">Belum dibaca</option><option value="read">Sudah dibaca</option></select></label>
-            <label className="text-sm">Per halaman<select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="mt-2 block rounded-lg border border-slate-300 p-2">{[15, 30, 50].map((n) => <option key={n}>{n}</option>)}</select></label>
-            <button disabled={loading} className="rounded-xl bg-emerald-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{loading ? 'Memuat…' : 'Terapkan / muat ulang daftar'}</button>
-        </form>
-        <form onSubmit={readAll} className="mb-5 rounded-xl border border-slate-200 bg-white p-5">
-            <label className="flex items-start gap-3 text-sm leading-6"><input type="checkbox" required checked={all.data.confirm} onChange={(e) => all.setData('confirm', e.target.checked)} className="mt-1" /><span>Tandai seluruh notifikasi insiden saya yang sudah tersimpan saat tindakan diproses, termasuk halaman dan filter lain, sebagai dibaca.</span></label>
-            <button disabled={all.processing} className="mt-4 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">{all.processing ? 'Menyimpan…' : 'Tandai semua sebagai dibaca'}</button>
-        </form>
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><h2 className="text-lg font-semibold">Inbox insiden</h2>
-            {!records.data.length ? <p role="status" className="py-10 text-sm text-slate-600">Tidak ada notifikasi pada halaman dan filter ini. Periksa juga antrean insiden terbuka.</p> : <ul className="mt-4 divide-y divide-slate-100">{records.data.map((record) => <li key={record.id} className="flex flex-wrap items-start justify-between gap-4 py-5">
-                <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{!record.read_at && <span className="mr-2 text-emerald-800">Belum dibaca ·</span>}{record.message}</p><time dateTime={record.created_at} className="mt-2 block text-xs text-slate-500">{formatMonitoringTime(record.created_at)}</time>
-                    {record.incident && <><p className="mt-3 text-xs text-slate-600">Status kini: {statuses[record.incident.status]}{record.incident.is_verified ? ' · terverifikasi manusia' : ''}</p><Link href={record.incident.detail_url} className="mt-3 inline-block text-sm font-semibold text-emerald-800 hover:underline">Buka detail insiden →</Link></>}</div>
-                <ReadButton key={`${record.id}:${record.read_at || 'unread'}`} record={record} context={context} />
-            </li>)}</ul>}
-            <OperationPagination page={records} label="notifikasi" />
-        </section>
+        <div className="ui-incident-page">
+            <header className="ui-incident-page-header"><h1>Notifikasi saya</h1><p>Pemberitahuan dugaan jatuh untuk staf. Membaca notifikasi tidak mengakui atau menyelesaikan insiden. Status penanganan dapat berubah setelah notifikasi dibuat.</p><p className="ui-incident-time">Daftar dimuat <time dateTime={as_of}>{formatMonitoringTime(as_of)}</time>. Ringkasan staf diperbarui terpisah; daftar dimuat ulang secara manual.</p></header>
+            {error && <p role="alert" className="ui-incident-error">{error}</p>}
+            {Object.keys(fieldErrors).length > 0 && <div ref={summaryRef} role="alert" tabIndex={-1} className="ui-incident-error">{[...new Set(Object.values(fieldErrors))].map((message, index) => <p key={index}>{message}</p>)}</div>}
+            <form ref={filterRef} onSubmit={load} aria-busy={loading} className="ui-incident-filter-bar">
+                <div className="ui-field-group"><label htmlFor={id + '-state'} className="ui-field-label">Status baca</label>
+                    <select id={id + '-state'} name="state" value={state} onChange={(event) => setState(event.target.value)} aria-invalid={Boolean(fieldErrors.state)} aria-describedby={fieldErrors.state ? id + '-state-error' : undefined} className="ui-field-control"><option value="all">Semua</option><option value="unread">Belum dibaca</option><option value="read">Sudah dibaca</option></select>
+                    {fieldErrors.state && <p id={id + '-state-error'} className="ui-field-error">{fieldErrors.state}</p>}
+                </div>
+                <div className="ui-field-group"><label htmlFor={id + '-per-page'} className="ui-field-label">Per halaman</label>
+                    <select id={id + '-per-page'} name="per_page" value={perPage} onChange={(event) => setPerPage(event.target.value)} aria-invalid={Boolean(fieldErrors.per_page)} aria-describedby={fieldErrors.per_page ? id + '-per-page-error' : undefined} className="ui-field-control">{[15, 30, 50].map((n) => <option key={n}>{n}</option>)}</select>
+                    {fieldErrors.per_page && <p id={id + '-per-page-error'} className="ui-field-error">{fieldErrors.per_page}</p>}
+                </div>
+                <Button type="submit" processing={loading}>{loading ? 'Memuat…' : 'Terapkan / muat ulang daftar'}</Button>
+            </form>
+            <MonitoringSection title="Inbox insiden" description="Status baca notifikasi terpisah dari status penanganan insiden.">
+                {!records.data.length ? <EmptyState title="Tidak ada notifikasi pada halaman dan filter ini." description="Periksa juga antrean insiden terbuka." /> : <ul className="ui-notification-list">{records.data.map((record) => <li key={record.id} className={record.read_at ? 'ui-notification-item' : 'ui-notification-item ui-notification-item--unread'}>
+                    <div className="ui-notification-item__content">
+                        <StatusBadge tone={record.read_at ? 'neutral' : 'info'}>{record.read_at ? 'Sudah dibaca' : 'Belum dibaca'}</StatusBadge>
+                        <p className="ui-notification-message">{record.message}</p>
+                        <time dateTime={record.created_at} className="ui-incident-time">{formatMonitoringTime(record.created_at)}</time>
+                        {record.incident && <div className="ui-notification-incident">
+                            <p className="ui-monitoring-copy">Status insiden saat ini</p><IncidentStatus status={record.incident.status} />
+                            <p className="ui-monitoring-copy">{record.incident.is_verified ? 'Terverifikasi manusia' : 'Belum/tidak terverifikasi'}</p>
+                            <Link href={record.incident.detail_url} className="ui-monitoring-link">Buka detail insiden</Link>
+                        </div>}
+                    </div>
+                    <NotificationReadAction key={record.id + ':' + (record.read_at || 'unread')} record={record} context={context} />
+                </li>)}</ul>}
+                <div className="ui-monitoring-pagination"><OperationPagination page={records} label="notifikasi" /></div>
+            </MonitoringSection>
+            <MonitoringSection title="Tandai seluruh notifikasi saya">
+                <form ref={allRef} onSubmit={readAll} aria-busy={all.processing} className="ui-notification-read-all">
+                    <label htmlFor={id + '-all-confirm'} className="ui-incident-confirm"><input id={id + '-all-confirm'} name="confirm" type="checkbox" required checked={all.data.confirm} disabled={all.processing} onChange={(event) => all.setData('confirm', event.target.checked)} aria-invalid={Boolean(fieldErrors.confirm)} aria-describedby={fieldErrors.confirm ? id + '-all-confirm-error' : undefined} /><span>Tandai seluruh notifikasi insiden saya yang sudah tersimpan saat tindakan diproses, termasuk halaman dan filter lain, sebagai dibaca.</span></label>
+                    {fieldErrors.confirm && <p id={id + '-all-confirm-error'} className="ui-field-error">{fieldErrors.confirm}</p>}
+                    <Button type="submit" variant="secondary" processing={all.processing}>{all.processing ? 'Menyimpan…' : 'Tandai semua sebagai dibaca'}</Button>
+                </form>
+            </MonitoringSection>
+        </div>
     </AppLayout>;
 }

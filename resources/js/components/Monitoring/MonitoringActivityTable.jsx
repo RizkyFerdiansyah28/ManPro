@@ -1,17 +1,49 @@
 import { Link } from '@inertiajs/react';
 import formatMonitoringTime from '../../utils/formatMonitoringTime';
 import MonitoringContext from './MonitoringContext';
+import TableFrame from '../ui/TableFrame';
+import EmptyState from '../ui/EmptyState';
+import StatusBadge from '../ui/StatusBadge';
 
 const categories = { walking_normal: 'Berjalan normal', walking_abnormal: 'Berjalan tidak normal', no_walking_detected: 'Tidak terdeteksi aktivitas berjalan' };
 const statuses = { pending: 'Menunggu tindak lanjut', acknowledged: 'Diakui · belum selesai', resolved: 'Selesai', false_alarm: 'Alarm palsu' };
+const tones = { pending: 'warning', acknowledged: 'info', resolved: 'neutral', false_alarm: 'neutral' };
+
 export default function MonitoringActivityTable({ records, emptyMessage = 'Belum ada rekaman yang sesuai filter.' }) {
-    if (!records.length) return <div role="status" className="rounded-xl bg-slate-50 px-6 py-14 text-center"><p className="text-sm font-medium text-slate-700">{emptyMessage}</p><p className="mt-2 text-xs leading-6 text-slate-500">Halaman ini membaca data tersimpan. Tidak ada event buatan atau pemrosesan video.</p></div>;
-    return <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><caption className="sr-only">Rekaman monitoring dengan waktu kejadian dan lokasi historis</caption><thead className="border-b border-slate-200 text-xs text-slate-500"><tr>{['Waktu · WIB', 'Event / kamera', 'Kamar / kelas historis', 'Rincian tersimpan', 'Identitas'].map((label) => <th key={label} scope="col" className="px-3 py-4 font-semibold">{label}</th>)}</tr></thead>
-        <tbody className="divide-y divide-slate-100">{records.map((record) => <tr key={record.id} className="align-top">
-            <td className="px-3 py-5"><p className="text-xs text-slate-500">Kejadian</p><time dateTime={record.occurred_at} title={record.occurred_at} className="mt-1 block whitespace-nowrap font-medium">{formatMonitoringTime(record.occurred_at)}</time><p className="mt-3 text-xs text-slate-500">Diterima</p><time dateTime={record.received_at} title={record.received_at} className="mt-1 block whitespace-nowrap text-xs text-slate-600">{formatMonitoringTime(record.received_at)}</time></td>
-            <td className="px-3 py-5"><span className={'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + (record.event_type === 'fall' ? 'bg-amber-50 text-amber-900' : 'bg-emerald-50 text-emerald-900')}>{record.event_type === 'fall' ? 'Fall' : 'Gait'}</span><p className="mt-3 max-w-48 break-words text-xs">{record.camera.name}</p>{record.camera.configuration_url && <Link href={record.camera.configuration_url} className="mt-2 inline-block text-xs font-semibold text-emerald-800 hover:underline">Konfigurasi saat ini →</Link>}</td>
-            <td className="max-w-60 px-3 py-5"><MonitoringContext context={record.context} /></td>
-            <td className="max-w-60 px-3 py-5">{record.fall ? <><p className={record.fall.status === 'pending' ? 'font-semibold text-amber-900' : 'font-medium'}>{statuses[record.fall.status]}</p><p className="mt-2 text-xs leading-6 text-slate-500">{record.fall.is_verified ? 'Tercatat terverifikasi' : 'Belum/tidak terverifikasi'}</p>{record.fall.verified_at && <p className="mt-1 text-xs text-slate-500">{formatMonitoringTime(record.fall.verified_at)}</p>}<Link href={record.fall.detail_url} className="mt-3 inline-block text-xs font-semibold text-emerald-800 hover:underline">Detail insiden →</Link></> : record.gait ? <><p className="font-medium">{categories[record.gait.category]}</p><p className="mt-2 text-xs leading-6 text-slate-500">Kategori observasi, bukan diagnosis.</p></> : <p className="text-xs leading-6 text-slate-500">Data rincian belum tersedia.</p>}</td>
-            <td className="max-w-52 px-3 py-5">{record.identity.state === 'known' ? <>{record.identity.resident_url ? <Link href={record.identity.resident_url} className="font-semibold text-emerald-800 hover:underline">{record.identity.name}</Link> : <p className="font-medium">{record.identity.name}</p>}<p className="mt-2 text-xs leading-6 text-slate-500">{record.identity.basis === 'vip_room_single_resident' ? 'Atribusi berdasarkan kamar VIP' : 'Identitas pada verifikasi tersimpan'}</p></> : <p className="text-xs leading-6 text-slate-500">Identitas belum diketahui</p>}</td>
-        </tr>)}</tbody></table></div>;
+    if (!records.length) return <EmptyState title={emptyMessage} description="Halaman ini membaca data tersimpan. Tidak ada event buatan atau pemrosesan video." />;
+    return (
+        <TableFrame label="Rekaman monitoring">
+            <table className="ui-monitoring-table">
+                <caption className="sr-only">Rekaman monitoring dengan waktu kejadian dan lokasi historis</caption>
+                <thead><tr>{['Waktu · WIB', 'Event / kamera', 'Kamar / kelas historis', 'Rincian tersimpan', 'Identitas'].map((label) => <th key={label} scope="col">{label}</th>)}</tr></thead>
+                <tbody>{records.map((record) => <tr key={record.id}>
+                    <td>
+                        <p className="ui-monitoring-table__label">Kejadian</p>
+                        <time dateTime={record.occurred_at} title={record.occurred_at} className="ui-monitoring-table__time">{formatMonitoringTime(record.occurred_at)}</time>
+                        <p className="ui-monitoring-table__label ui-monitoring-table__received">Diterima</p>
+                        <time dateTime={record.received_at} title={record.received_at} className="ui-monitoring-table__time ui-monitoring-table__time--secondary">{formatMonitoringTime(record.received_at)}</time>
+                    </td>
+                    <td>
+                        <StatusBadge tone={record.event_type === 'fall' ? 'warning' : 'neutral'}>{record.event_type === 'fall' ? 'Fall' : record.event_type === 'gait' ? 'Gait' : 'Jenis event tidak dikenal'}</StatusBadge>
+                        <p className="ui-monitoring-table__entity">{record.camera.name}</p>
+                        {record.camera.configuration_url && <Link href={record.camera.configuration_url} className="ui-monitoring-link">Konfigurasi saat ini</Link>}
+                    </td>
+                    <td><MonitoringContext context={record.context} /></td>
+                    <td>{record.fall ? <>
+                        <StatusBadge tone={tones[record.fall.status] ?? 'neutral'}>{statuses[record.fall.status] ?? 'Status insiden tidak dikenal'}</StatusBadge>
+                        <p className="ui-monitoring-table__note">{record.fall.is_verified ? 'Tercatat terverifikasi' : 'Belum/tidak terverifikasi'}</p>
+                        {record.fall.verified_at && <time dateTime={record.fall.verified_at} className="ui-monitoring-table__note">{formatMonitoringTime(record.fall.verified_at)}</time>}
+                        <Link href={record.fall.detail_url} className="ui-monitoring-link">Detail insiden</Link>
+                    </> : record.gait ? <>
+                        <p className="ui-monitoring-table__entity">{categories[record.gait.category] ?? 'Kategori gait tidak dikenal'}</p>
+                        <p className="ui-monitoring-table__note">Kategori observasi, bukan diagnosis.</p>
+                    </> : <p className="ui-monitoring-table__note">Data rincian belum tersedia.</p>}</td>
+                    <td>{record.identity.state === 'known' ? <>
+                        {record.identity.resident_url ? <Link href={record.identity.resident_url} className="ui-monitoring-link">{record.identity.name}</Link> : <p className="ui-monitoring-table__entity">{record.identity.name}</p>}
+                        <p className="ui-monitoring-table__note">{record.identity.basis === 'vip_room_single_resident' ? 'Atribusi berdasarkan kamar VIP' : 'Identitas pada verifikasi tersimpan'}</p>
+                    </> : <p className="ui-monitoring-table__note">Identitas belum diketahui</p>}</td>
+                </tr>)}</tbody>
+            </table>
+        </TableFrame>
+    );
 }

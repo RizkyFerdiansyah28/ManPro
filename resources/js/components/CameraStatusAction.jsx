@@ -1,4 +1,5 @@
 import { useForm } from '@inertiajs/react';
+import Button from './ui/Button';
 
 export default function CameraStatusAction({ camera }) {
     const form = useForm({ confirm_status_change: true });
@@ -7,5 +8,5 @@ export default function CameraStatusAction({ camera }) {
         form.transform((data) => ({ ...data, version: camera.version }));
         form.post(`/admin/cameras/${camera.id}/${camera.is_active ? 'deactivate' : 'activate'}`);
     }
-    return <div className="space-y-3"><button type="button" onClick={update} disabled={form.processing} className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold disabled:opacity-50">{form.processing ? 'Memperbarui…' : camera.is_active ? 'Nonaktifkan kamera' : 'Aktifkan kamera'}</button>{Object.values(form.errors).length > 0 && <p role="alert" className="text-sm text-red-700">{Object.values(form.errors).join(' ')}</p>}</div>;
+    return <div className="space-y-3"><Button type="button" variant="secondary" onClick={update} processing={form.processing}>{form.processing ? 'Memperbarui…' : camera.is_active ? 'Nonaktifkan kamera' : 'Aktifkan kamera'}</Button>{Object.values(form.errors).length > 0 && <p role="alert" className="text-sm text-red-700">{Object.values(form.errors).join(' ')}</p>}</div>;
 }

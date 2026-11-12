@@ -1,4 +1,5 @@
 import { useForm } from '@inertiajs/react';
+import Button from './ui/Button';
 
 export default function FacilityStatusAction({ target, kind }) {
     const form = useForm({ confirm_status_change: true });
@@ -9,7 +10,7 @@ export default function FacilityStatusAction({ target, kind }) {
     }
     return (
         <div className="space-y-4">
-            <button type="button" disabled={form.processing} onClick={changeStatus} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50">{form.processing ? 'Memperbarui…' : target.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+            <Button type="button" variant="secondary" processing={form.processing} onClick={changeStatus}>{form.processing ? 'Memperbarui…' : target.is_active ? 'Nonaktifkan' : 'Aktifkan'}</Button>
             {Object.values(form.errors).length > 0 && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{Object.values(form.errors).join(' ')}</p>}
         </div>
     );

@@ -1,47 +1,118 @@
-import { useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { router, useForm, usePage } from '@inertiajs/react';
+import { useEffect, useId, useRef, useState } from 'react';
 import IncidentResidentSelector from './IncidentResidentSelector';
+import Button from '../ui/Button';
+import StatusBadge from '../ui/StatusBadge';
+import focusFormErrors from '../../utils/focusFormErrors';
+import { incidentActionsFor, incidentActionTitles, incidentActionDescriptions, initialIncidentActionData, changeIncidentActionData, hasUnsavedIncidentInput, switchIncidentAction, submitIncidentAction, incidentActionUrl } from '../../utils/incidentForm';
+import { protectUnsavedIncidentInput } from '../../utils/unsavedIncidentInput';
 
-const titles = { acknowledge: 'Akui dan mulai penanganan', verify: 'Verifikasi jatuh benar', resolve: 'Selesaikan penanganan', false_alarm: 'Tandai alarm palsu' };
-function requestId() {
-    const bytes = crypto.getRandomValues(new Uint8Array(16));
-    bytes[6] = (bytes[6] & 15) | 64;
-    bytes[8] = (bytes[8] & 63) | 128;
-    const hex = Array.from(bytes, (n) => n.toString(16).padStart(2, '0')).join('');
-    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
-function ActionForm({ incident, action }) {
-    const form = useForm({ request_id: requestId(), expected_version: incident.version, confirm: false, notes: '',
-        ...(action === 'verify' ? { identity_mode: 'unknown', elderly_id: '' } : {}) });
+function ActionForm({ incident, action, allowed, onActionChange, includePageErrors }) {
+    const form = useForm(() => initialIncidentActionData(incident, action));
+    const pageErrors = usePage().props.errors ?? {};
+    const errors = { ...(includePageErrors ? pageErrors : {}), ...form.errors };
+    const id = useId();
+    const formRef = useRef(null);
+    const summaryRef = useRef(null);
+    const failureRef = useRef(null);
+    const lock = useRef(false);
+    const focusPending = useRef(false);
+    const saved = useRef(false);
     const [failure, setFailure] = useState('');
+    const dirty = !saved.current && hasUnsavedIncidentInput(form.data);
+    const current = useRef(null);
+    current.current = { dirty, data: form.data, url: incidentActionUrl(incident, action) };
+    const errorSignature = JSON.stringify(errors);
+
+    useEffect(() => protectUnsavedIncidentInput({
+        router, windowTarget: window, current: () => current.current, confirm: (message) => window.confirm(message),
+    }), []);
+    useEffect(() => {
+        if (focusPending.current && !form.processing && Object.keys(errors).length) {
+            focusFormErrors(formRef.current, summaryRef.current, errors);
+            focusPending.current = false;
+        }
+    }, [errorSignature, form.processing]);
+    useEffect(() => { if (failure) failureRef.current?.focus(); }, [failure]);
+
     function change(field, value) {
-        form.setData((previous) => ({ ...previous, [field]: value, ...(field === 'identity_mode' ? { elderly_id: '' } : {}), request_id: requestId() }));
+        saved.current = false;
+        form.setData((previous) => changeIncidentActionData(previous, field, value));
     }
     function submit(event) {
         event.preventDefault();
+        if (form.processing || lock.current) return;
         setFailure('');
-        const fail = () => { setFailure('Respons belum dapat dipastikan. Muat ulang detail untuk memeriksa hasil, atau kirim ulang intent yang sama tanpa mengubah isian.'); return false; };
-        form.post(`${incident.detail_url}/${action.replace('_', '-')}`, { preserveScroll: true, onNetworkError: fail, onHttpException: fail });
+        submitIncidentAction({
+            form, incident, action, lock,
+            onFailure: () => setFailure('Hasil penyimpanan belum dapat dipastikan. Muat ulang detail untuk memeriksa hasil, atau coba kirim ulang tanpa mengubah isian.'),
+            onError: () => { focusPending.current = true; },
+            onSuccess: () => { saved.current = true; current.current.dirty = false; },
+        });
     }
-    return <form onSubmit={submit} className="mt-5 space-y-5"><fieldset disabled={form.processing} className="space-y-5">
-        <legend className="font-semibold">{titles[action]}</legend>
-        {action === 'verify' && <><label className="block text-sm">Identitas<select value={form.data.identity_mode} onChange={(e) => change('identity_mode', e.target.value)} className="mt-2 block w-full rounded-lg border border-slate-300 p-3"><option value="unknown">Identitas belum diketahui</option><option value="known">Lansia teridentifikasi secara manual</option></select></label>
-            {form.data.identity_mode === 'known' && <IncidentResidentSelector incidentId={incident.id} selectedId={form.data.elderly_id} onSelect={(id) => change('elderly_id', id)} disabled={form.processing} />}</>}
-        <label className="block text-sm">Catatan penanganan {action === 'acknowledge' ? '(opsional)' : '(wajib)'}<textarea value={form.data.notes} onChange={(e) => change('notes', e.target.value)} required={action !== 'acknowledge'} maxLength={2000} rows={4} className="mt-2 block w-full rounded-xl border border-slate-300 p-3" aria-describedby="incident-notes-help" /></label>
-        <p id="incident-notes-help" className="text-xs leading-6 text-slate-500">Maksimal 2.000 karakter. Catat penanganan seperlunya; hindari credential dan informasi pribadi yang tidak diperlukan. Catatan tindakan tidak dapat diedit setelah tersimpan.</p>
-        <label className="flex items-start gap-3 text-sm leading-6"><input type="checkbox" checked={form.data.confirm} onChange={(e) => change('confirm', e.target.checked)} required className="mt-1" /><span>Saya mengonfirmasi tindakan manual ini. {['resolve', 'false_alarm'].includes(action) && 'Insiden akan ditutup dan tidak dapat dibuka kembali.'}</span></label>
-        {Object.keys(form.errors).length > 0 && <div role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{Object.entries(form.errors).map(([key, error]) => <p key={key}>{error}</p>)}</div>}
-        {failure && <p role="alert" className="text-sm text-red-800">{failure}</p>}
-        <button type="submit" disabled={form.processing} aria-busy={form.processing} className="rounded-xl bg-emerald-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{form.processing ? 'Menyimpan…' : titles[action]}</button>
-    </fieldset></form>;
+    function changeAction(next) {
+        switchIncidentAction({
+            current: action, next, allowed, data: form.data, processing: form.processing || lock.current,
+            confirm: (message) => window.confirm(message), onChange: onActionChange,
+        });
+    }
+    return (
+        <form ref={formRef} onSubmit={submit} aria-busy={form.processing} className="ui-incident-action-form">
+            <fieldset disabled={form.processing}>
+                <legend className="ui-incident-action-form__legend">Tindakan berikutnya</legend>
+                <div className="ui-field-group">
+                    <label htmlFor={id + '-action'} className="ui-field-label">Pilih tindakan</label>
+                    <select id={id + '-action'} name="action-choice" value={action} onChange={(event) => changeAction(event.target.value)} className="ui-field-control">
+                        {allowed.map((name) => <option key={name} value={name}>{incidentActionTitles[name]}</option>)}
+                    </select>
+                </div>
+                <div className="ui-incident-action-description"><h3>{incidentActionTitles[action]}</h3><p>{incidentActionDescriptions[action]}</p></div>
+                {action === 'verify' && <>
+                    <div className="ui-field-group">
+                        <label htmlFor={id + '-identity'} className="ui-field-label">Identitas</label>
+                        <select id={id + '-identity'} name="identity_mode" value={form.data.identity_mode} onChange={(event) => change('identity_mode', event.target.value)} aria-invalid={Boolean(errors.identity_mode)} aria-describedby={errors.identity_mode ? id + '-identity-error' : undefined} className={'ui-field-control ' + (errors.identity_mode ? 'ui-field-control--invalid' : '')}>
+                            <option value="unknown">Identitas belum diketahui</option><option value="known">Lansia teridentifikasi secara manual</option>
+                        </select>
+                        {errors.identity_mode && <p id={id + '-identity-error'} className="ui-field-error">{errors.identity_mode}</p>}
+                    </div>
+                    {form.data.identity_mode === 'known' && <IncidentResidentSelector incidentId={incident.id} selectedId={form.data.elderly_id} onSelect={(value) => change('elderly_id', value)} disabled={form.processing} inputId={id + '-resident'} error={errors.elderly_id} />}
+                </>}
+                <div className="ui-field-group">
+                    <label htmlFor={id + '-notes'} className="ui-field-label">Catatan penanganan {action === 'acknowledge' ? '(opsional)' : '(wajib)'}</label>
+                    <textarea id={id + '-notes'} name="notes" value={form.data.notes} onChange={(event) => change('notes', event.target.value)} required={action !== 'acknowledge'} maxLength={2000} rows={5} aria-invalid={Boolean(errors.notes)} aria-describedby={[id + '-notes-help', errors.notes ? id + '-notes-error' : ''].filter(Boolean).join(' ')} className={'ui-field-control ui-incident-notes-input ' + (errors.notes ? 'ui-field-control--invalid' : '')} />
+                    <p id={id + '-notes-help'} className="ui-field-hint">Maksimal 2.000 karakter. Catat penanganan seperlunya; hindari credential dan informasi pribadi yang tidak diperlukan. Catatan tindakan tidak dapat diedit setelah tersimpan.</p>
+                    {errors.notes && <p id={id + '-notes-error'} className="ui-field-error">{errors.notes}</p>}
+                </div>
+                <div>
+                    <label htmlFor={id + '-confirm'} className="ui-incident-confirm">
+                        <input id={id + '-confirm'} name="confirm" type="checkbox" checked={form.data.confirm} onChange={(event) => change('confirm', event.target.checked)} required aria-invalid={Boolean(errors.confirm)} aria-describedby={errors.confirm ? id + '-confirm-error' : undefined} />
+                        <span>Saya mengonfirmasi tindakan manual ini. {['resolve', 'false_alarm'].includes(action) && 'Insiden akan ditutup dan tidak dapat dibuka kembali.'}</span>
+                    </label>
+                    {errors.confirm && <p id={id + '-confirm-error'} className="ui-field-error">{errors.confirm}</p>}
+                </div>
+                {dirty && <p className="ui-incident-unsaved" role="status">Perubahan belum disimpan. Periksa catatan sebelum berpindah. Tombol Kembali/Maju browser dapat membuang isian.</p>}
+                {Object.keys(errors).length > 0 && <div ref={summaryRef} role="alert" tabIndex={-1} className="ui-incident-error"><p className="ui-incident-error__title">Tindakan belum dapat disimpan.</p>{Object.entries(errors).map(([key, error]) => <p key={key}>{error}</p>)}</div>}
+                {failure && <p ref={failureRef} role="alert" tabIndex={-1} className="ui-incident-error">{failure}</p>}
+                <Button type="submit" variant="secondary" processing={form.processing} className="ui-incident-submit">{form.processing ? 'Menyimpan…' : incidentActionTitles[action]}</Button>
+            </fieldset>
+        </form>
+    );
 }
 
 export default function IncidentActions({ incident }) {
-    const [action, setAction] = useState(incident.allowed_actions[0] || '');
-    if (!incident.allowed_actions.length) return <p className="text-sm leading-7 text-slate-600">Tidak ada tindakan yang tersedia untuk akun dan status ini. Histori tetap dapat dibaca.</p>;
-    return <section><h2 className="text-lg font-semibold">Tindakan Perawat</h2><p className="mt-2 text-sm leading-7 text-slate-600">Perawat aktif dapat melanjutkan penanganan bersama. Petugas acknowledge pertama tetap tercatat.</p>
-        <label className="mt-4 block text-sm">Pilih tindakan<select value={action} onChange={(e) => setAction(e.target.value)} className="mt-2 block w-full rounded-lg border border-slate-300 p-3">{incident.allowed_actions.map((name) => <option key={name} value={name}>{titles[name]}</option>)}</select></label>
-        <ActionForm key={`${incident.version}:${action}`} incident={incident} action={action} />
-    </section>;
+    const { auth, errors: pageErrors = {} } = usePage().props;
+    const allowed = incidentActionsFor(incident, auth.user.role);
+    const [action, setAction] = useState(allowed[0] || '');
+    const [includePageErrors, setIncludePageErrors] = useState(true);
+    const summaryRef = useRef(null);
+    const errorSignature = JSON.stringify(pageErrors);
+    useEffect(() => { if (!allowed.length && Object.keys(pageErrors).length) summaryRef.current?.focus(); }, [errorSignature, allowed.length]);
+    const unavailableErrors = Object.keys(pageErrors).length > 0 && <div ref={summaryRef} role="alert" tabIndex={-1} className="ui-incident-error">{Object.entries(pageErrors).map(([key, message]) => <p key={key}>{message}</p>)}</div>;
+    if (auth.user.role === 'admin') return <div className="ui-incident-readonly"><StatusBadge tone="neutral">Pengawasan Admin · baca saja</StatusBadge><p>Tindakan penanganan dan verifikasi dilakukan oleh Perawat. Riwayat insiden tetap dapat dibaca.</p>{unavailableErrors}</div>;
+    if (!allowed.length) return <div className="ui-incident-readonly"><p>Tidak ada tindakan yang tersedia untuk akun dan status ini. Histori tetap dapat dibaca.</p>{['resolved', 'false_alarm'].includes(incident.status) && <p>Insiden sudah ditutup dan tidak dapat dibuka atau diedit kembali.</p>}{unavailableErrors}</div>;
+    const active = allowed.includes(action) ? action : allowed[0];
+    return <div>
+        <p className="ui-monitoring-copy">Perawat aktif dapat melanjutkan penanganan bersama. Petugas acknowledge pertama tetap tercatat.</p>
+        <ActionForm key={auth.user.id + ':' + incident.id + ':' + incident.version + ':' + active} incident={incident} action={active} allowed={allowed} includePageErrors={includePageErrors} onActionChange={(next) => { setAction(next); setIncludePageErrors(false); }} />
+    </div>;
 }

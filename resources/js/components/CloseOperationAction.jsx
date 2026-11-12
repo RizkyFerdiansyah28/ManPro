@@ -1,4 +1,5 @@
 import { useForm } from '@inertiajs/react';
+import Button from './ui/Button';
 
 export default function CloseOperationAction({ residentId, record, kind, disabled = false }) {
     const form = useForm({ confirm_end: true });
@@ -8,7 +9,7 @@ export default function CloseOperationAction({ residentId, record, kind, disable
         form.post(`/admin/residents/${residentId}/${kind}/${record.id}/close`);
     }
     return <div className="mt-5 space-y-3">
-        <button type="button" disabled={disabled || form.processing} onClick={close} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50">{form.processing ? 'Menutup…' : isStay ? 'Tutup masa tinggal' : 'Tutup enrollment'}</button>
+        <Button type="button" variant="secondary" disabled={disabled} processing={form.processing} onClick={close}>{form.processing ? 'Menutup…' : isStay ? 'Tutup masa tinggal' : 'Tutup enrollment'}</Button>
         {disabled && <p className="text-xs text-slate-500">Tutup masa tinggal terlebih dahulu.</p>}
         {Object.values(form.errors).length > 0 && <p role="alert" className="text-sm text-red-700">{Object.values(form.errors).join(' ')}</p>}
     </div>;

@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import Brand from '../../components/Brand';
 import FormField from '../../components/FormField';
+import Button from '../../components/ui/Button';
 
 export default function Login() {
     const form = useForm({ email: '', password: '' });
@@ -22,7 +23,7 @@ export default function Login() {
                     <form onSubmit={submit} className="mt-9 space-y-6" aria-label="Form masuk">
                         <FormField id="email" label="Email" type="email" autoComplete="username" autoFocus required maxLength={254} value={form.data.email} onChange={(event) => form.setData('email', event.target.value)} error={form.errors.email} />
                         <FormField id="password" label="Kata sandi" type="password" autoComplete="current-password" required value={form.data.password} onChange={(event) => form.setData('password', event.target.value)} error={form.errors.password} />
-                        <button disabled={form.processing} className="w-full rounded-xl bg-emerald-800 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-900 focus-visible:ring-4 focus-visible:ring-emerald-200 disabled:cursor-wait disabled:opacity-60">{form.processing ? 'Memeriksa akun…' : 'Masuk'}</button>
+                        <Button type="submit" processing={form.processing} className="w-full">{form.processing ? 'Memeriksa akun…' : 'Masuk'}</Button>
                     </form>
                     <div className="mt-8 border-t border-slate-100 pt-6 text-sm leading-6 text-slate-500">Perlu bantuan masuk?<br /><span className="font-medium text-slate-700">Hubungi Admin panti untuk bantuan akun.</span></div>
                 </main>

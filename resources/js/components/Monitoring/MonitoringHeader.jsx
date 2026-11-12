@@ -1,8 +1,9 @@
 import { Link, router } from '@inertiajs/react';
 import { useState } from 'react';
+import Button from '../ui/Button';
 import formatMonitoringTime from '../../utils/formatMonitoringTime';
 
-export default function MonitoringHeader({ title, description, asOf }) {
+export default function MonitoringHeader({ title, description, asOf, children }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     function reload() {
@@ -10,14 +11,23 @@ export default function MonitoringHeader({ title, description, asOf }) {
         const fail = () => { setError('Pembaruan gagal. Data di bawah belum diperbarui. Periksa koneksi lalu coba kembali.'); return false; };
         router.reload({ preserveScroll: true, onStart: () => setLoading(true), onFinish: () => setLoading(false), onNetworkError: fail, onHttpException: fail });
     }
-    return <header className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">Monitoring petugas</p>
-        <div className="mt-3 flex flex-wrap items-start justify-between gap-5">
-            <div><h1 className="text-3xl font-bold tracking-tight">{title}</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">{description}</p></div>
-            <button type="button" onClick={reload} disabled={loading} aria-busy={loading} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold focus-visible:ring-4 focus-visible:ring-emerald-100 disabled:opacity-50">{loading ? 'Memuat…' : 'Muat ulang data'}</button>
-        </div>
-        <p className="mt-4 text-xs text-slate-500" role="status">Data dimuat: {formatMonitoringTime(asOf)} · WIB (UTC+07:00) · Pembaruan manual.</p>
-        {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
-        <nav aria-label="Halaman monitoring" className="mt-5 flex flex-wrap gap-5 text-sm font-semibold text-emerald-800"><Link href="/monitoring/records" className="hover:underline">Semua rekaman →</Link><Link href="/monitoring/open-incidents" className="hover:underline">Insiden terbuka · seluruh waktu →</Link><Link href="/monitoring/incidents" className="hover:underline">Seluruh insiden →</Link></nav>
-    </header>;
+    return (
+        <header className="ui-monitoring-header">
+            <div className="ui-monitoring-header__row">
+                <div className="ui-monitoring-header__content">
+                    <h1>{title}</h1>
+                    <p className="ui-monitoring-header__description">{description}</p>
+                    {children && <div className="ui-monitoring-header__context">{children}</div>}
+                </div>
+                <Button variant="secondary" onClick={reload} processing={loading}>{loading ? 'Memuat…' : 'Muat ulang data'}</Button>
+            </div>
+            <p className="ui-monitoring-header__timestamp" role="status">{loading ? 'Memuat pembaruan… ' : 'Data dimuat: '}<time dateTime={asOf}>{formatMonitoringTime(asOf)}</time><span>Pembaruan manual.</span></p>
+            {error && <p role="alert" className="ui-monitoring-error">{error}</p>}
+            <nav aria-label="Halaman monitoring" className="ui-monitoring-links">
+                <Link href="/monitoring/records" className="ui-monitoring-link">Semua rekaman</Link>
+                <Link href="/monitoring/open-incidents" className="ui-monitoring-link">Insiden terbuka · seluruh waktu</Link>
+                <Link href="/monitoring/incidents" className="ui-monitoring-link">Seluruh insiden</Link>
+            </nav>
+        </header>
+    );
 }
