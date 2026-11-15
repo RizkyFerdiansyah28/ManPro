@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './invoices.css';
 
 /* UI-4: scoped to Admin management; the family portal keeps its existing UI. */
 @layer components {

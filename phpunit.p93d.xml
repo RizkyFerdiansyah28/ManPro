@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd" bootstrap="vendor/autoload.php" colors="true">
+    <testsuites><testsuite name="PostgreSQL P9-3D">
+        <directory>tests/Feature/Database</directory>
+        <directory>tests/Feature/Authentication</directory>
+        <directory>tests/Feature/Residents</directory>
+        <directory>tests/Feature/Facilities</directory>
+        <directory>tests/Feature/Operations</directory>
+        <directory>tests/Feature/Cameras</directory>
+        <directory>tests/Feature/AiGateway</directory>
+        <directory>tests/Feature/Monitoring</directory>
+        <directory>tests/Feature/Incidents</directory>
+        <directory>tests/Feature/Notifications</directory>
+        <directory>tests/Feature/FamilyPortal</directory>
+        <file>tests/Browser/InvoiceBrowserIntegrationTest.php</file>
+    </testsuite></testsuites>
+    <source><include><directory>app</directory></include></source>
+    <php>
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="DB_CONNECTION" value="silansia_testing" force="true"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+    </php>
+</phpunit>

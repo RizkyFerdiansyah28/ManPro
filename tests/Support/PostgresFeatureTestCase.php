@@ -5,6 +5,7 @@ namespace Tests\Support;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 abstract class PostgresFeatureTestCase extends TestCase
@@ -39,6 +40,9 @@ abstract class PostgresFeatureTestCase extends TestCase
 
     protected function account(string $role = 'admin', bool $active = true, array $attributes = []): User
     {
+        // Stage child berbagi histori committed; Faker unique hanya berlaku dalam satu proses.
+        $attributes += ['email' => 'fixture-'.Str::uuid().'@example.test'];
+
         return User::factory()->create([...$attributes, 'role' => $role, 'is_active' => $active, 'password' => self::PASSWORD]);
     }
 

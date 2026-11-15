@@ -21,6 +21,14 @@ $guard = null;
 $exitCode = 0;
 
 try {
+    $integrityOnly = ($argv[1] ?? '') === '--integrity-only';
+    $concurrencyOnly = ($argv[1] ?? '') === '--concurrency-only';
+    $temporalOnly = ($argv[1] ?? '') === '--temporal-only';
+    $httpOnly = ($argv[1] ?? '') === '--http-only';
+    $issuanceOnly = ($argv[1] ?? '') === '--issuance-only' || $concurrencyOnly || $temporalOnly || $httpOnly;
+    if (count($argv) > 2 || (isset($argv[1]) && ! $integrityOnly && ! $issuanceOnly)) {
+        throw new RuntimeException('Runner menerima mode penuh, --integrity-only, --issuance-only, --concurrency-only, --temporal-only, atau --http-only.');
+    }
     if (! $app->environment('local', 'testing') || $app->configurationIsCached()) {
         throw new RuntimeException('Runner memerlukan lingkungan local/testing tanpa config cache.');
     }
@@ -29,16 +37,33 @@ try {
     }
     $cacheDirectoryCreated = true;
 
+    if (getenv('SILANSIA_P93D_VERIFY') === '1') {
+        $neutral = config('database.connections.pgsql');
+        if ($neutral['database'] !== 'postgres' || ! empty($neutral['url'])
+            || $neutral['host'] !== '127.0.0.1' || (string) $neutral['port'] !== '5432') {
+            throw new RuntimeException('P9-3D menolak koneksi administrasi selain postgres pada loopback.');
+        }
+    }
     $admin = DB::connection('pgsql');
     $config = $admin->getConfig();
     if ($admin->getDriverName() !== 'pgsql' || ! is_string($config['host']) || $database === $config['database']) {
         throw new RuntimeException('Koneksi administrasi PostgreSQL tidak valid.');
     }
-    $server = $admin->selectOne("SELECT current_user AS owner,
+    $server = $admin->selectOne("SELECT current_database() AS database, current_user AS owner,
         COALESCE(inet_server_addr()::text, '') AS address, COALESCE(inet_server_port()::text, '') AS port");
     if ($server->owner !== $config['username']) {
         throw new RuntimeException('Identitas role PostgreSQL tidak sesuai konfigurasi.');
     }
+    if (getenv('SILANSIA_P93D_VERIFY') === '1') {
+        if ($server->database !== 'postgres') {
+            throw new RuntimeException('P9-3D administrative identity mismatch.');
+        }
+        echo "ADMIN_TARGET: postgres pada 127.0.0.1:5432 terverifikasi; bukan database development.\n";
+    }
+    if ($admin->scalar("SELECT count(*) FROM pg_stat_activity WHERE datname ~ '^silansia_test_[a-f0-9]{16}$'") !== 0) {
+        throw new RuntimeException('Terdapat sesi test lama/runner lain. Tidak ada proses atau database lama yang dibersihkan.');
+    }
+    echo "PASS: tidak ada sesi database test lama pada server ini.\n";
 
     // Nama/token hanya berasal dari random_bytes, bukan input bebas.
     $admin->statement('CREATE DATABASE "'.$database.'"');
@@ -71,14 +96,19 @@ try {
         'SILANSIA_TEST_DB_SSLMODE' => $config['sslmode'] ?? 'prefer',
         'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'sync',
         'MAIL_MAILER' => 'array', 'BROADCAST_CONNECTION' => 'null',
+        'FINANCIAL_OWNERSHIP_LEDGER_ENABLED' => 'false', 'FINANCIAL_OWNERSHIP_CUTOVER_REFERENCE' => '',
+        'INVOICE_ISSUANCE_ENABLED' => 'false',
+        'SILANSIA_P92D_EVIDENCE_FILE' => base_path('docs/report/SILANSIA_P9_2D_TEST_EVIDENCE_'.$runId.'.jsonl'),
+        'SILANSIA_P92D1_EVIDENCE_FILE' => base_path('docs/report/SILANSIA_P9_2D1_TEST_EVIDENCE_'.$runId.'.jsonl'),
+        'SILANSIA_P93B_EVIDENCE_FILE' => base_path('docs/report/SILANSIA_P9_3B_TEST_EVIDENCE_'.$runId.'.jsonl'),
     ];
     $run = function (string $action, ?array $expected = null, array $overrides = []) use ($environment, $guard, $testDb): void {
         $guard->assertTarget($testDb);
         $process = new Process([PHP_BINARY, 'tests/Support/postgres-child.php', $action],
             dirname(__DIR__, 2), array_replace($environment, $overrides));
-        $process->setTimeout($action === 'phpunit' ? 600 : 180);
+        $process->setTimeout(in_array($action, ['phpunit', 'schema_phpunit', 'integrity_phpunit', 'ledger_phpunit', 'issuance_phpunit', 'concurrency_phpunit', 'temporal_phpunit', 'http_phpunit'], true) ? 600 : 180);
         $process->run();
-        if ($action === 'phpunit' && $expected === null) {
+        if (in_array($action, ['phpunit', 'schema_phpunit', 'integrity_phpunit', 'ledger_phpunit', 'issuance_phpunit', 'concurrency_phpunit', 'temporal_phpunit', 'http_phpunit'], true) && $expected === null) {
             echo $process->getOutput();
             echo $process->getErrorOutput();
             if (! $process->isSuccessful()) {
@@ -180,21 +210,99 @@ try {
     echo "PASS: guard sesi terhubung tepat; tipe, migration, dan seluruh fixture tidak berubah.\n";
 
     $baseline = $snapshot();
+    $run('expansion');
+    echo "TEST_STAGE: schema P9-1A dan preflight P9-1B\n";
+    if (! $issuanceOnly) {
+        $run('schema_phpunit');
+    } else {
+        echo "NOT RUN: schema suite (mode targeted; safety probes dan migration tetap dijalankan).\n";
+    }
     $run('migrate');
     $run('status');
-    $run('phpunit');
+    if (! $integrityOnly && ! $issuanceOnly) {
+        echo "TEST_STAGE: regresi existing dengan guard P9-1B aktif\n";
+        $run('phpunit');
+    } else {
+        echo "NOT RUN: regresi existing (mode targeted; bukan hasil regresi penuh).\n";
+    }
     $guard->assertTarget($testDb);
     $domainMigrations = $testDb->table('migrations')->count() - count($baseline['migrations']);
-    if ($domainMigrations !== 7) {
-        throw new RuntimeException('Jumlah migration domain tidak sesuai Phase 1, 4B, 6, dan 7.');
+    $expectedDomainMigrations = [
+        '2026_10_21_000001_convert_user_keys_to_uuid',
+        '2026_10_21_000002_create_silansia_foundation',
+        '2026_10_21_000003_reject_nan_monetary_values',
+        '2026_10_24_000004_create_camera_operating_periods',
+        '2026_10_24_000005_link_ai_detections_to_camera_periods',
+        '2026_11_10_000006_add_incident_actions_and_precision',
+        '2026_11_10_000007_harden_staff_notifications',
+        '2026_11_12_000008_expand_billing_schema',
+        '2026_11_13_000009_add_billing_integrity_guards',
+    ];
+    $actualDomainMigrations = $testDb->table('migrations')->whereIn('migration', $expectedDomainMigrations)
+        ->orderBy('migration')->pluck('migration')->all();
+    if ($domainMigrations !== count($expectedDomainMigrations) || $actualDomainMigrations !== $expectedDomainMigrations) {
+        throw new RuntimeException('Inventaris migration domain tidak sesuai Phase 1/4B/6/7/P9-1A.');
     }
     foreach (range(1, $domainMigrations) as $step) {
         $run('rollback');
     }
     $assertSnapshot($baseline);
-    echo "PASS: rollback tujuh migration Phase 1/4B/6/7, tipe awal, catatan migration, dan seluruh sesi anonim terjaga.\n";
+    echo "PASS: rollback sembilan migration Phase 1/4B/6/7/P9-1A/P9-1B kosong, tipe awal, catatan migration, dan seluruh sesi anonim terjaga.\n";
     $run('migrate');
-    echo "PASS: seluruh migration Phase 1/4B/6/7 dapat diterapkan ulang.\n";
+    echo "PASS: seluruh migration Phase 1/4B/6/7/P9-1A/P9-1B dapat diterapkan ulang.\n";
+    // Histori immutable suite integrity sengaja dipertahankan sampai owned DB dihapus.
+    if (! $issuanceOnly) {
+        echo "TEST_STAGE: integrity dan concurrency P9-1B\n";
+        $run('integrity_phpunit');
+        echo "TEST_STAGE: integrasi writer dan concurrency P9-1C (gate ON hanya di fixture owned DB)\n";
+        $run('ledger_phpunit');
+    } else {
+        echo "NOT RUN: integrity/ledger suites (mode targeted).\n";
+    }
+    if (! $concurrencyOnly && ! $temporalOnly && ! $httpOnly) {
+        echo "TEST_STAGE: internal invoice issuance P9-2C (gate ON hanya di fixture owned DB)\n";
+        $run('issuance_phpunit');
+    } else {
+        echo "NOT RUN: issuance C (mode targeted concurrency/temporal).\n";
+    }
+    if ($concurrencyOnly || ! $issuanceOnly) {
+        echo "TEST_STAGE: concurrency/integration P9-2D\n";
+        $run('concurrency_phpunit');
+    } else {
+        echo "NOT RUN: concurrency D (mode --issuance-only).\n";
+    }
+    if ($temporalOnly || ! $issuanceOnly) {
+        echo "TEST_STAGE: temporal coverage P9-2D.1\n";
+        $run('temporal_phpunit');
+    } else {
+        echo "NOT RUN: temporal D.1 (mode targeted lain).\n";
+    }
+    if ($httpOnly || ! $issuanceOnly) {
+        echo "TEST_STAGE: Admin invoice HTTP P9-3B\n";
+        $run('http_phpunit');
+    } else {
+        echo "NOT RUN: HTTP P9-3B (mode targeted lain).\n";
+    }
+    $guard->assertTarget($testDb);
+    $financialSnapshot = function () use ($guard, $testDb): array {
+        $guard->assertTarget($testDb);
+        $result = [];
+        foreach (['invoices', 'payments', 'financial_ownership_periods', 'invoice_revisions', 'billing_requests', 'billing_actions', 'migrations'] as $table) {
+            $result[$table] = $testDb->selectOne('SELECT count(*)::int AS count, md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text), \'[]\'::jsonb)::text) AS fingerprint FROM public."'.$table.'" t');
+        }
+
+        return $result;
+    };
+    $historyBefore = $financialSnapshot();
+    if ($historyBefore['invoice_revisions']->count < 1 || $historyBefore['financial_ownership_periods']->count < 1) {
+        throw new RuntimeException('Suite integrity wajib meninggalkan histori committed untuk probe rollback.');
+    }
+    $run('rollback', ['ok' => false, 'reason' => 'billing_history_guard', 'exception' => RuntimeException::class,
+        'message' => 'Rollback guard billing ditolak: terdapat data atau metadata billing baru. Gunakan perubahan maju.']);
+    if (serialize($historyBefore) !== serialize($financialSnapshot())) {
+        throw new RuntimeException('Histori atau catatan migration berubah setelah rollback guard ditolak.');
+    }
+    echo "PASS: rollback guard pada histori committed ditolak tepat; seluruh histori dan migration records terjaga.\n";
 } catch (Throwable $exception) {
     echo 'Verifikasi gagal ('.get_class($exception).'). ';
     echo get_class($exception) === RuntimeException::class || get_class($exception) === LogicException::class

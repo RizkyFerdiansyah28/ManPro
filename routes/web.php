@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountController;
+use App\Http\Controllers\Admin\Billing\InvoiceController;
+use App\Http\Controllers\Admin\Billing\InvoiceIssuanceController;
 use App\Http\Controllers\Admin\CameraController;
 use App\Http\Controllers\Admin\ResidentController as AdminResidentController;
 use App\Http\Controllers\Admin\ResidentOperationsController;
@@ -16,6 +18,7 @@ use App\Http\Controllers\Monitoring\MonitoringDashboardController;
 use App\Http\Controllers\Monitoring\MonitoringRecordsController;
 use App\Http\Controllers\Monitoring\OpenIncidentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Middleware\RequireInvoiceJson;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'redirect'])->name('home');
@@ -47,6 +50,15 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::post('/logout', [SessionController::class, 'destroy'])->name('logout');
 
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
+        Route::prefix('billing/invoices')->name('billing.invoices.')->group(function () {
+            Route::get('/', [InvoiceController::class, 'index'])->middleware('throttle:invoice-read')->name('index');
+            Route::get('/create', [InvoiceController::class, 'create'])->middleware('throttle:invoice-read')->name('create');
+            Route::get('/resident-options', [InvoiceController::class, 'residentOptions'])->middleware('throttle:invoice-read')->name('resident-options');
+            Route::post('/preview', [InvoiceIssuanceController::class, 'preview'])->middleware([RequireInvoiceJson::class, 'throttle:invoice-preview'])->name('preview');
+            Route::post('/', [InvoiceIssuanceController::class, 'store'])->middleware([RequireInvoiceJson::class, 'throttle:invoice-issue'])->name('store');
+            Route::post('/reconcile', [InvoiceIssuanceController::class, 'reconcile'])->middleware([RequireInvoiceJson::class, 'throttle:invoice-reconcile'])->name('reconcile');
+            Route::get('/{invoice}', [InvoiceController::class, 'show'])->whereUuid('invoice')->middleware('throttle:invoice-read')->name('show');
+        });
         Route::get('/camera-room-options', [CameraController::class, 'roomOptions'])->name('camera-room-options');
         Route::get('/cameras', [CameraController::class, 'index'])->name('cameras.index');
         Route::get('/cameras/create', [CameraController::class, 'create'])->name('cameras.create');

@@ -18,7 +18,7 @@ try {
         throw new LogicException('environment_mismatch');
     }
     $action = $argv[1] ?? '';
-    if ($action === 'phpunit') {
+    if (in_array($action, ['phpunit', 'schema_phpunit', 'integrity_phpunit', 'ledger_phpunit', 'issuance_phpunit', 'concurrency_phpunit', 'temporal_phpunit', 'http_phpunit'], true)) {
         // Preflight koneksi tanpa bootstrap/error handler Laravel sebelum PHPUnit.
         $connection = (new ConnectionFactory(new Container))->make([
             'driver' => 'pgsql', 'url' => null,
@@ -31,9 +31,19 @@ try {
         $guard->assertTarget($connection);
         $connection->disconnect();
         // Tiap kasus memverifikasi app/koneksi aktual lagi sebelum transaksi fixture.
+        $selection = match ($action) {
+            'schema_phpunit' => ['--group=billing-expansion-schema'],
+            'integrity_phpunit' => ['--group=billing-integrity'],
+            'ledger_phpunit' => ['--group=financial-ownership-ledger'],
+            'issuance_phpunit' => ['--group=invoice-issuance'],
+            'concurrency_phpunit' => ['--group=invoice-concurrency'],
+            'temporal_phpunit' => ['--group=invoice-temporal'],
+            'http_phpunit' => ['--group=invoice-http'],
+            default => ['--exclude-group=billing-expansion-schema', '--exclude-group=billing-integrity', '--exclude-group=financial-ownership-ledger', '--exclude-group=invoice-issuance', '--exclude-group=invoice-concurrency', '--exclude-group=invoice-temporal', '--exclude-group=invoice-http'],
+        };
         $exitCode = (new Application)->run([
-            'phpunit', '--configuration=phpunit.pgsql.xml', '--do-not-cache-result',
-            '--fail-on-risky', '--fail-on-warning',
+            'phpunit', '--configuration='.(getenv('SILANSIA_P93D_VERIFY') === '1' ? 'phpunit.p93d.xml' : 'phpunit.pgsql.xml'), '--do-not-cache-result',
+            '--fail-on-risky', '--fail-on-warning', '--fail-on-skipped', '--fail-on-empty-test-suite', ...$selection,
         ]);
         exit($exitCode);
     }
@@ -43,7 +53,7 @@ try {
     $guard->assertSafe($app, DB::connection('silansia_testing'));
     $options = ['--database' => 'silansia_testing', '--no-interaction' => true, '--no-ansi' => true];
     $command = match ($action) {
-        'baseline', 'migrate' => 'migrate',
+        'baseline', 'expansion', 'migrate' => 'migrate',
         'rollback' => 'migrate:rollback',
         'status' => 'migrate:status',
         default => throw new LogicException('action_invalid'),
@@ -57,6 +67,11 @@ try {
             'database/migrations/0001_01_01_000001_create_cache_table.php',
             'database/migrations/0001_01_01_000002_create_jobs_table.php',
         ];
+    }
+    if ($action === 'expansion') {
+        $options['--path'] = array_values(array_filter(glob(database_path('migrations/*.php')),
+            fn (string $path): bool => basename($path) !== '2026_11_13_000009_add_billing_integrity_guards.php'));
+        $options['--realpath'] = true;
     }
     if ($action === 'rollback') {
         $options['--step'] = 1;
@@ -74,6 +89,8 @@ try {
     $guardMessage = 'Konversi kunci hanya aman untuk users kosong dan sesi anonim. Diperlukan pemetaan data tersendiri.';
     if (get_class($exception) === RuntimeException::class && $exception->getMessage() === $guardMessage) {
         $result = ['ok' => false, 'reason' => 'uuid_guard', 'exception' => RuntimeException::class, 'message' => $guardMessage];
+    } elseif (get_class($exception) === RuntimeException::class && $exception->getMessage() === 'Rollback guard billing ditolak: terdapat data atau metadata billing baru. Gunakan perubahan maju.') {
+        $result = ['ok' => false, 'reason' => 'billing_history_guard', 'exception' => RuntimeException::class, 'message' => $exception->getMessage()];
     } elseif (get_class($exception) === LogicException::class) {
         $result = ['ok' => false, 'reason' => 'safety_rejected', 'guard' => $exception->getMessage()];
     } else {

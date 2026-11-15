@@ -11,7 +11,7 @@ import { openNavigationDialog } from '../../resources/js/utils/navigationDialog.
 
 const id = '12345678-1234-4234-8234-123456789abc';
 const expected = {
-    admin: ['/admin', '/monitoring/records', '/monitoring/open-incidents', '/monitoring/incidents', '/admin/accounts', '/admin/residents', '/admin/service-classes', '/admin/rooms', '/admin/cameras', '/notifications'],
+    admin: ['/admin', '/monitoring/records', '/monitoring/open-incidents', '/monitoring/incidents', '/admin/accounts', '/admin/residents', '/admin/service-classes', '/admin/rooms', '/admin/cameras', '/admin/billing/invoices', '/notifications'],
     perawat: ['/perawat', '/monitoring/records', '/monitoring/open-incidents', '/monitoring/incidents', '/notifications'],
     keluarga: ['/keluarga', '/keluarga/residents'],
 };

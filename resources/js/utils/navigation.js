@@ -23,12 +23,14 @@ export function navigationForRole(role) {
         { label: 'Utama', items: [{ href: '/' + role, label: 'Beranda' }] },
         { label: 'Pemantauan', items: monitoring },
         ...(role === 'admin' ? [{ label: 'Manajemen', items: management }] : []),
+        ...(role === 'admin' ? [{ label: 'Billing', items: [{ href: '/admin/billing/invoices', label: 'Invoice' }] }] : []),
         { label: 'Notifikasi', items: [{ href: '/notifications', label: 'Notifikasi saya' }] },
     ];
 }
 
 const uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 const children = {
+    '/admin/billing/invoices': [['create', 'Terbitkan invoice'], [uuid, 'Detail invoice']],
     '/admin/accounts': [['create', 'Buat akun'], [uuid + '/password', 'Atur ulang kata sandi']],
     '/admin/residents': [['create', 'Tambah lansia'], [uuid, 'Detail lansia'], [uuid + '/edit', 'Edit lansia'], [uuid + '/operations', 'Operasional lansia'], [uuid + '/enrollments/create', 'Buat enrollment'], [uuid + '/stays/create', 'Buat masa tinggal']],
     '/admin/service-classes': [[uuid, 'Detail kelas layanan'], [uuid + '/edit', 'Edit kelas layanan']],

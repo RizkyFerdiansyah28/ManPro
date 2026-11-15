@@ -3,13 +3,16 @@
 
 use App\Exceptions\AiGatewayException;
 use App\Http\Middleware\EnsureActiveAccount;
+use App\Http\Middleware\EnsureInvoiceResponsePrivacy;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireRole;
+use App\Support\Billing\InvoiceHttpResponse;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
@@ -24,21 +27,36 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands()
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            EnsureInvoiceResponsePrivacy::class,
             EnsureActiveAccount::class,
             HandleInertiaRequests::class,
         ]);
-        $middleware->appendToPriorityList(StartSession::class, EnsureActiveAccount::class);
+        $middleware->appendToPriorityList(StartSession::class, EnsureInvoiceResponsePrivacy::class);
+        $middleware->appendToPriorityList(EnsureInvoiceResponsePrivacy::class, EnsureActiveAccount::class);
         $middleware->alias(['role' => RequireRole::class]);
-        $middleware->trimStrings(except: ['source_reference']);
+        $middleware->trimStrings(except: ['source_reference', 'confirmation_token']);
         $middleware->redirectGuestsTo(fn () => route('login'));
         $middleware->redirectUsersTo(fn (Request $request) => route($request->user()->homeRoute()));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->report(function (Throwable $error) {
+            if (app()->bound('request') && InvoiceHttpResponse::matches(request())) {
+                // Tidak meneruskan SQL/arguments/token ke default reporter pada boundary billing.
+                Log::warning('Permintaan HTTP invoice gagal.', ['category' => 'invoice_http_failure']);
+
+                return false;
+            }
+        });
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
-        $exceptions->dontFlash(['current_password', 'password', 'password_confirmation', 'source_reference', 'notes']);
+        $exceptions->dontFlash(['current_password', 'password', 'password_confirmation', 'source_reference', 'notes', 'confirmation_token']);
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
+            if (InvoiceHttpResponse::matches($request)) {
+                return $response->getStatusCode() >= 400
+                    ? InvoiceHttpResponse::error($exception, $request, $response)
+                    : InvoiceHttpResponse::privacy($response);
+            }
             $status = $response->getStatusCode();
             if ($request->is('api/ai/*') && $status >= 400 && ! $exception instanceof AiGatewayException) {
                 return response()->json([

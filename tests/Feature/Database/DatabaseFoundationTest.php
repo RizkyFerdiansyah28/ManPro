@@ -383,10 +383,10 @@ class DatabaseFoundationTest extends TestCase
     {
         $document = file_get_contents(base_path('docs/database/SILANSIA_ERD.md'));
         preg_match_all('/^    ([a-z_]+) \{\R(.*?)^    \}/ms', $document, $entities, PREG_SET_ORDER);
-        $this->assertCount(15, $entities);
+        $this->assertCount(19, $entities);
         $types = [
             'uuid' => 'uuid', 'varchar' => 'character varying', 'char' => 'character', 'text' => 'text',
-            'numeric' => 'numeric', 'integer' => 'integer', 'boolean' => 'boolean',
+            'numeric' => 'numeric', 'integer' => 'integer', 'smallint' => 'smallint', 'bigint' => 'bigint', 'boolean' => 'boolean',
             'date' => 'date', 'timestamp' => 'timestamp without time zone',
             'timestamptz' => 'timestamp with time zone', 'jsonb' => 'jsonb',
         ];
@@ -464,6 +464,8 @@ class DatabaseFoundationTest extends TestCase
         $record = $this->monetaryRecord($table);
         $migration = require database_path('migrations/2026_10_21_000003_reject_nan_monetary_values.php');
         // Hanya di transaksi fixture DB acak: simulasikan kondisi sebelum migration aditif.
+        // Selesaikan event FK pointer (termasuk legacy NULL) sebelum ALTER TABLE PostgreSQL.
+        DB::statement('SET CONSTRAINTS invoices_current_revision_foreign IMMEDIATE');
         $migration->down();
         DB::table($table)->where('id', $record->id)->update([$column => 'NaN']);
         $before = DB::table($table)->where('id', $record->id)->first();

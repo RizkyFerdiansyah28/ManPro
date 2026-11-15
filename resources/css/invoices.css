@@ -1,0 +1,18 @@
+@layer components {
+    .ui-invoice-badges { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .ui-invoice-money, .ui-invoice-amount { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .ui-invoice-money { text-align: right; }
+    .ui-invoice-amount { font-size: var(--text-ui-section); font-weight: 600; color: var(--color-ui-primary); }
+    .ui-invoice-table { min-width: 64rem; }
+    .ui-invoice-table th:nth-child(3) { text-align: right; }
+    .ui-invoice-table th:first-child { width: 30%; }
+    .ui-invoice-loading { padding: 1rem 1.25rem; }
+    .ui-invoice-dialog { width: min(36rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); margin: auto; overflow: auto; padding: 1.5rem; border: 1px solid var(--color-ui-divider); border-radius: var(--radius-ui-overlay); background: var(--color-ui-surface); color: var(--color-ui-text); }
+    .ui-invoice-dialog::backdrop { background: rgb(15 23 42 / .45); }
+    .ui-invoice-dialog > * + * { margin-top: 1.25rem; }
+    .ui-invoice-dialog p { line-height: 1.75; overflow-wrap: anywhere; }
+    .ui-invoice-dialog .ui-management-actions { justify-content: flex-end; }
+    .ui-invoice-history { display: grid; gap: 1rem; padding-inline-start: 1.25rem; list-style: decimal; }
+    .ui-invoice-history li { padding-inline-start: .25rem; }
+    @media (max-width: 39.99rem) { .ui-invoice-dialog { padding: 1.25rem; } .ui-invoice-dialog .ui-management-actions > button { width: 100%; } }
+}
