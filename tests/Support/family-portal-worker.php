@@ -7,6 +7,7 @@ use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\FrameworkRuntimeIsolation;
 use Tests\Support\PostgresTestGuard;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
@@ -18,6 +19,7 @@ try {
         throw new LogicException('environment_mismatch');
     }
     $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
+    FrameworkRuntimeIsolation::attach($app);
     $app->make(ConsoleKernel::class)->bootstrap();
     $guard->assertSafe($app, DB::connection());
     $data = json_decode($argv[1] ?? '', true, 512, JSON_THROW_ON_ERROR);

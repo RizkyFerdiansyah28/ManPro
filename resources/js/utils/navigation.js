@@ -17,19 +17,22 @@ export function navigationForRole(role) {
     if (role === 'keluarga') return [{ label: 'Portal keluarga', items: [
         { href: '/keluarga', label: 'Beranda' },
         { href: '/keluarga/residents', label: 'Lansia keluarga' },
+        { href: '/keluarga/tagihan', label: 'Tagihan' },
     ] }];
     if (!['admin', 'perawat'].includes(role)) return [];
     return [
         { label: 'Utama', items: [{ href: '/' + role, label: 'Beranda' }] },
         { label: 'Pemantauan', items: monitoring },
         ...(role === 'admin' ? [{ label: 'Manajemen', items: management }] : []),
-        ...(role === 'admin' ? [{ label: 'Billing', items: [{ href: '/admin/billing/invoices', label: 'Invoice' }] }] : []),
+        ...(role === 'admin' ? [{ label: 'Billing', items: [{ href: '/admin/billing/invoices', label: 'Invoice' }, { href: '/admin/pembayaran', label: 'Pembayaran' }] }] : []),
         { label: 'Notifikasi', items: [{ href: '/notifications', label: 'Notifikasi saya' }] },
     ];
 }
 
 const uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 const children = {
+    '/keluarga/tagihan': [[uuid, 'Detail tagihan']],
+    '/admin/pembayaran': [[uuid + '/' + uuid, 'Detail pembayaran']],
     '/admin/billing/invoices': [['create', 'Terbitkan invoice'], [uuid, 'Detail invoice']],
     '/admin/accounts': [['create', 'Buat akun'], [uuid + '/password', 'Atur ulang kata sandi']],
     '/admin/residents': [['create', 'Tambah lansia'], [uuid, 'Detail lansia'], [uuid + '/edit', 'Edit lansia'], [uuid + '/operations', 'Operasional lansia'], [uuid + '/enrollments/create', 'Buat enrollment'], [uuid + '/stays/create', 'Buat masa tinggal']],

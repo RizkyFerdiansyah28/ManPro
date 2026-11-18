@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Exceptions\InvoiceHttpException;
 use App\Support\Billing\InvoiceHttpResponse;
+use App\Support\Billing\PaymentHttpResponse;
 use Closure;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
@@ -13,6 +14,9 @@ class EnsureInvoiceResponsePrivacy
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (PaymentHttpResponse::matches($request)) {
+            return $next($request);
+        }
         if (InvoiceHttpResponse::matches($request)) {
             $allowed = match (true) {
                 $request->isMethod('POST') => [],

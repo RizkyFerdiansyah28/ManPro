@@ -21,6 +21,7 @@ use Illuminate\Database\Events\TransactionCommitting;
 use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Tests\Support\FrameworkRuntimeIsolation;
 use Tests\Support\InvoiceHttpWorkerRequest;
 use Tests\Support\PostgresTestGuard;
 use Tests\Support\TemporalLedgerClock;
@@ -35,6 +36,7 @@ try {
         throw new LogicException('environment_mismatch');
     }
     $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
+    FrameworkRuntimeIsolation::attach($app);
     $app->make(Kernel::class)->bootstrap();
     $guard->assertSafe($app, DB::connection());
     if (config('invoice_issuance.enabled') !== true || config('financial_ownership.enabled') !== true

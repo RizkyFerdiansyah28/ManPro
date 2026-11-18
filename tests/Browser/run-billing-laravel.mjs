@@ -1,8 +1,10 @@
+import { preflight as runtimePreflight } from '../Frontend/isolationPreflight.mjs';
 // Real Chrome -> Laravel -> owned PostgreSQL. Secrets travel only through pipes/memory.
 import assert from 'node:assert/strict';
 import { chromium } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
+if (process.env.SILANSIA_P94E1_VERIFY === '1' || JSON.parse(process.env.SILANSIA_TEST_IDENTITY ?? '{}').runtime_root) runtimePreflight();
 let raw = ''; for await (const chunk of process.stdin) raw += chunk;
 const input = JSON.parse(raw); raw = '';
 const { origin, sources, accounts, password } = input;

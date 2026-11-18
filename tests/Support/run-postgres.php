@@ -4,10 +4,18 @@
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Process\Process;
+use Tests\Support\FrameworkRuntimeIsolation;
 use Tests\Support\PostgresTestGuard;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
+try {
+    FrameworkRuntimeIsolation::environment();
+} catch (Throwable $error) {
+    echo json_encode(['ok' => false, 'reason' => $error instanceof LogicException ? $error->getMessage() : 'runtime_preflight_failure']);
+    exit(78);
+}
 $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
+FrameworkRuntimeIsolation::attach($app);
 $app->make(Kernel::class)->bootstrap();
 
 $runId = bin2hex(random_bytes(8));
@@ -25,7 +33,10 @@ try {
     $concurrencyOnly = ($argv[1] ?? '') === '--concurrency-only';
     $temporalOnly = ($argv[1] ?? '') === '--temporal-only';
     $httpOnly = ($argv[1] ?? '') === '--http-only';
-    $issuanceOnly = ($argv[1] ?? '') === '--issuance-only' || $concurrencyOnly || $temporalOnly || $httpOnly;
+    $paymentUiOnly = ($argv[1] ?? '') === '--payment-ui-only';
+    $paymentHttpOnly = ($argv[1] ?? '') === '--payment-http-only';
+    $paymentOnly = ($argv[1] ?? '') === '--payment-only' || $paymentHttpOnly;
+    $issuanceOnly = ($argv[1] ?? '') === '--issuance-only' || $concurrencyOnly || $temporalOnly || $httpOnly || $paymentOnly || $paymentUiOnly;
     if (count($argv) > 2 || (isset($argv[1]) && ! $integrityOnly && ! $issuanceOnly)) {
         throw new RuntimeException('Runner menerima mode penuh, --integrity-only, --issuance-only, --concurrency-only, --temporal-only, atau --http-only.');
     }
@@ -76,6 +87,9 @@ try {
         'host' => $config['host'], 'connection_port' => (string) $config['port'],
         'token' => $token, 'cache' => $cacheFile,
     ];
+    if (FrameworkRuntimeIsolation::active()) {
+        $identity['runtime_root'] = FrameworkRuntimeIsolation::root();
+    }
     $guard = new PostgresTestGuard($identity);
     config(['database.connections.silansia_testing' => array_replace($config, [
         'name' => 'silansia_testing', 'url' => null, 'database' => $database,
@@ -97,18 +111,19 @@ try {
         'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'sync',
         'MAIL_MAILER' => 'array', 'BROADCAST_CONNECTION' => 'null',
         'FINANCIAL_OWNERSHIP_LEDGER_ENABLED' => 'false', 'FINANCIAL_OWNERSHIP_CUTOVER_REFERENCE' => '',
-        'INVOICE_ISSUANCE_ENABLED' => 'false',
+        'INVOICE_ISSUANCE_ENABLED' => 'false', 'PAYMENT_CORE_ENABLED' => 'false',
         'SILANSIA_P92D_EVIDENCE_FILE' => base_path('docs/report/SILANSIA_P9_2D_TEST_EVIDENCE_'.$runId.'.jsonl'),
         'SILANSIA_P92D1_EVIDENCE_FILE' => base_path('docs/report/SILANSIA_P9_2D1_TEST_EVIDENCE_'.$runId.'.jsonl'),
+        'SILANSIA_P94C_EVIDENCE_FILE' => base_path('docs/report/SILANSIA_P9_4C_TEST_EVIDENCE_'.$runId.'.jsonl'),
         'SILANSIA_P93B_EVIDENCE_FILE' => base_path('docs/report/SILANSIA_P9_3B_TEST_EVIDENCE_'.$runId.'.jsonl'),
     ];
     $run = function (string $action, ?array $expected = null, array $overrides = []) use ($environment, $guard, $testDb): void {
         $guard->assertTarget($testDb);
         $process = new Process([PHP_BINARY, 'tests/Support/postgres-child.php', $action],
             dirname(__DIR__, 2), array_replace($environment, $overrides));
-        $process->setTimeout(in_array($action, ['phpunit', 'schema_phpunit', 'integrity_phpunit', 'ledger_phpunit', 'issuance_phpunit', 'concurrency_phpunit', 'temporal_phpunit', 'http_phpunit'], true) ? 600 : 180);
+        $process->setTimeout(in_array($action, ['phpunit', 'schema_phpunit', 'integrity_phpunit', 'ledger_phpunit', 'issuance_phpunit', 'concurrency_phpunit', 'temporal_phpunit', 'http_phpunit', 'payment_phpunit', 'payment_http_phpunit', 'payment_ui_phpunit'], true) ? 600 : 180);
         $process->run();
-        if (in_array($action, ['phpunit', 'schema_phpunit', 'integrity_phpunit', 'ledger_phpunit', 'issuance_phpunit', 'concurrency_phpunit', 'temporal_phpunit', 'http_phpunit'], true) && $expected === null) {
+        if (in_array($action, ['phpunit', 'schema_phpunit', 'integrity_phpunit', 'ledger_phpunit', 'issuance_phpunit', 'concurrency_phpunit', 'temporal_phpunit', 'http_phpunit', 'payment_phpunit', 'payment_http_phpunit', 'payment_ui_phpunit'], true) && $expected === null) {
             echo $process->getOutput();
             echo $process->getErrorOutput();
             if (! $process->isSuccessful()) {
@@ -259,7 +274,7 @@ try {
     } else {
         echo "NOT RUN: integrity/ledger suites (mode targeted).\n";
     }
-    if (! $concurrencyOnly && ! $temporalOnly && ! $httpOnly) {
+    if (! $concurrencyOnly && ! $temporalOnly && ! $httpOnly && ! $paymentOnly && ! $paymentUiOnly) {
         echo "TEST_STAGE: internal invoice issuance P9-2C (gate ON hanya di fixture owned DB)\n";
         $run('issuance_phpunit');
     } else {
@@ -283,7 +298,18 @@ try {
     } else {
         echo "NOT RUN: HTTP P9-3B (mode targeted lain).\n";
     }
+    if ($paymentOnly || ! $issuanceOnly) {
+        echo "TEST_STAGE: internal payment core P9-4B (owned fixture only)\n";
+        $run('payment_phpunit');
+    }
+    if ($paymentHttpOnly || ! $issuanceOnly) {
+        echo "TEST_STAGE: payment HTTP/private storage P9-4C (synthetic owned fixtures only)\n";
+        $run('payment_http_phpunit');
+    }
     $guard->assertTarget($testDb);
+    if ($paymentUiOnly || (getenv('SILANSIA_P94D_VERIFY') === '1' && ! $issuanceOnly)) {
+        $run('payment_ui_phpunit');
+    }
     $financialSnapshot = function () use ($guard, $testDb): array {
         $guard->assertTarget($testDb);
         $result = [];
@@ -325,7 +351,7 @@ try {
         }
     }
     // Tidak ada penghapusan rekursif atau path dari input pengguna.
-    if ($cacheDirectoryCreated && is_dir($cacheDirectory) && ! file_exists($cacheFile)) {
+    if ($cacheDirectoryCreated && is_dir($cacheDirectory) && ! file_exists($cacheFile) && count(scandir($cacheDirectory)) === 2) {
         rmdir($cacheDirectory);
     }
 }

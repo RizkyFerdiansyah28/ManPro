@@ -1,5 +1,8 @@
 <?php
 
+require __DIR__.'/payments.php';
+require __DIR__.'/payment-pages.php';
+
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\Billing\InvoiceController;
 use App\Http\Controllers\Admin\Billing\InvoiceIssuanceController;

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { createInertiaApp } from '@inertiajs/react';
-import { createServer } from 'vite';
+import { createServer } from './isolatedVite.mjs';
 import react from '@vitejs/plugin-react';
 import { parseAst } from 'rolldown/parseAst';
 import focusFormErrors from '../../resources/js/utils/focusFormErrors.js';

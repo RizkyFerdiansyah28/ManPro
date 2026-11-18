@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { createInertiaApp } from '@inertiajs/react';
-import { createServer } from 'vite';
+import { createServer } from './isolatedVite.mjs';
 import react from '@vitejs/plugin-react';
 
 const id = '12345678-1234-4234-8234-123456789abc';

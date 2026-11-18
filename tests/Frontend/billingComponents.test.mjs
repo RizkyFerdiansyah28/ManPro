@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { createInertiaApp } from '@inertiajs/react';
-import { createServer } from 'vite';
+import { createServer } from './isolatedVite.mjs';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { actor, listInvoice, detailInvoice, legacyInvoice, pagination, preview } from './billingFixtures.mjs';

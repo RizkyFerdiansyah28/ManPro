@@ -10,6 +10,7 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Tests\Support\FrameworkRuntimeIsolation;
 use Tests\Support\PostgresTestGuard;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
@@ -21,6 +22,7 @@ try {
         throw new LogicException('environment_mismatch');
     }
     $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
+    FrameworkRuntimeIsolation::attach($app);
     $app->make(Kernel::class)->bootstrap();
     $guard->assertSafe($app, DB::connection());
     if (config('financial_ownership.enabled') !== true || config('financial_ownership.cutover_reference') !== 'owned-test-only-approval') {

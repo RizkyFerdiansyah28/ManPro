@@ -11,6 +11,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\FrameworkRuntimeIsolation;
 use Tests\Support\PostgresTestGuard;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
@@ -21,6 +22,7 @@ try {
         throw new LogicException('environment_mismatch');
     }
     $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
+    FrameworkRuntimeIsolation::attach($app);
     $kernel = $app->make(Kernel::class);
     $kernel->bootstrap();
     $guard->assertSafe($app, DB::connection());

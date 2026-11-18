@@ -6,6 +6,7 @@ use Illuminate\Database\Connectors\ConnectionFactory;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\TextUI\Application;
 use Symfony\Component\Console\Output\BufferedOutput;
+use Tests\Support\FrameworkRuntimeIsolation;
 use Tests\Support\PostgresTestGuard;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
@@ -18,7 +19,7 @@ try {
         throw new LogicException('environment_mismatch');
     }
     $action = $argv[1] ?? '';
-    if (in_array($action, ['phpunit', 'schema_phpunit', 'integrity_phpunit', 'ledger_phpunit', 'issuance_phpunit', 'concurrency_phpunit', 'temporal_phpunit', 'http_phpunit'], true)) {
+    if (in_array($action, ['phpunit', 'schema_phpunit', 'integrity_phpunit', 'ledger_phpunit', 'issuance_phpunit', 'concurrency_phpunit', 'temporal_phpunit', 'http_phpunit', 'payment_phpunit', 'payment_http_phpunit', 'payment_ui_phpunit'], true)) {
         // Preflight koneksi tanpa bootstrap/error handler Laravel sebelum PHPUnit.
         $connection = (new ConnectionFactory(new Container))->make([
             'driver' => 'pgsql', 'url' => null,
@@ -39,15 +40,20 @@ try {
             'concurrency_phpunit' => ['--group=invoice-concurrency'],
             'temporal_phpunit' => ['--group=invoice-temporal'],
             'http_phpunit' => ['--group=invoice-http'],
-            default => ['--exclude-group=billing-expansion-schema', '--exclude-group=billing-integrity', '--exclude-group=financial-ownership-ledger', '--exclude-group=invoice-issuance', '--exclude-group=invoice-concurrency', '--exclude-group=invoice-temporal', '--exclude-group=invoice-http'],
+            'payment_ui_phpunit' => ['--group=payment-ui'],
+            'payment_http_phpunit' => ['--group=payment-http'],
+            'payment_phpunit' => ['--group=payment-core'],
+            default => ['--exclude-group=billing-expansion-schema', '--exclude-group=billing-integrity', '--exclude-group=financial-ownership-ledger', '--exclude-group=invoice-issuance', '--exclude-group=invoice-concurrency', '--exclude-group=invoice-temporal', '--exclude-group=invoice-http', '--exclude-group=payment-core', '--exclude-group=payment-http', '--exclude-group=payment-ui'],
         };
         $exitCode = (new Application)->run([
-            'phpunit', '--configuration='.(getenv('SILANSIA_P93D_VERIFY') === '1' ? 'phpunit.p93d.xml' : 'phpunit.pgsql.xml'), '--do-not-cache-result',
-            '--fail-on-risky', '--fail-on-warning', '--fail-on-skipped', '--fail-on-empty-test-suite', ...$selection,
+            'phpunit', '--configuration='.(getenv('SILANSIA_P94D_VERIFY') === '1' ? 'phpunit.p94d.xml' : (getenv('SILANSIA_P93D_VERIFY') === '1' && getenv('SILANSIA_P94B_VERIFY') !== '1' ? 'phpunit.p93d.xml' : 'phpunit.pgsql.xml')), '--do-not-cache-result',
+            '--fail-on-risky', '--fail-on-warning', '--fail-on-skipped', '--fail-on-empty-test-suite',
+            ...(FrameworkRuntimeIsolation::active() ? ['--cache-directory='.FrameworkRuntimeIsolation::root().'/cache/phpunit'] : []), ...$selection,
         ]);
         exit($exitCode);
     }
     $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
+    FrameworkRuntimeIsolation::attach($app);
     $kernel = $app->make(Kernel::class);
     $kernel->bootstrap();
     $guard->assertSafe($app, DB::connection('silansia_testing'));

@@ -2,6 +2,7 @@ import React from 'react';
 import { createInertiaApp, router } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { installInvoiceSessionBoundary } from './utils/billing/sessionBoundary';
+import { installPaymentSessionBoundary } from './utils/payments/sessionBoundary';
 
 createInertiaApp({
     resolve: (name) => {
@@ -26,6 +27,7 @@ createInertiaApp({
 
     setup({ el, App, props }) {
         installInvoiceSessionBoundary({ router, target: window, initialAuth: props.initialPage?.props.auth });
+        installPaymentSessionBoundary({ router, target: window, initialAuth: props.initialPage?.props.auth });
         createRoot(el).render(<App {...props} />);
     },
 });

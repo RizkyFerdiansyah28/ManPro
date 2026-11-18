@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { renderToStaticMarkup, renderToString } from 'react-dom/server';
 import { createInertiaApp } from '@inertiajs/react';
-import { createServer } from 'vite';
+import { createServer } from './isolatedVite.mjs';
 import react from '@vitejs/plugin-react';
 import { parseAst } from 'rolldown/parseAst';
 import { navigationContext } from '../../resources/js/utils/navigation.js';
@@ -14,9 +14,9 @@ import focusFormErrors from '../../resources/js/utils/focusFormErrors.js';
 
 const id = '12345678-1234-4234-8234-123456789abc';
 const menus = {
-    admin: ['/admin', '/monitoring/records', '/monitoring/open-incidents', '/monitoring/incidents', '/admin/accounts', '/admin/residents', '/admin/service-classes', '/admin/rooms', '/admin/cameras', '/admin/billing/invoices', '/notifications'],
+    admin: ['/admin', '/monitoring/records', '/monitoring/open-incidents', '/monitoring/incidents', '/admin/accounts', '/admin/residents', '/admin/service-classes', '/admin/rooms', '/admin/cameras', '/admin/billing/invoices', '/admin/pembayaran', '/notifications'],
     perawat: ['/perawat', '/monitoring/records', '/monitoring/open-incidents', '/monitoring/incidents', '/notifications'],
-    keluarga: ['/keluarga', '/keluarga/residents'],
+    keluarga: ['/keluarga', '/keluarga/residents', '/keluarga/tagihan'],
 };
 const userFor = (role) => ({ id, role, name: 'Nama akun panjang '.repeat(16), home_url: menus[role]?.[0] ?? '/' });
 const sources = {};

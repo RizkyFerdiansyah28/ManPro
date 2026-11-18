@@ -22,6 +22,8 @@ use App\Policies\RoomPolicy;
 use App\Policies\ServiceClassPolicy;
 use App\Policies\ServiceEnrollmentPolicy;
 use App\Policies\UserPolicy;
+use App\Services\Billing\LocalPaymentProofStore;
+use App\Services\Billing\PaymentProofStore;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -35,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(PaymentProofStore::class, LocalPaymentProofStore::class);
     }
 
     /**
@@ -43,6 +45,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        foreach (['read' => 60, 'context' => 30, 'submit' => 5, 'review' => 10, 'reconcile' => 10, 'proof' => 20] as $operation => $limit) {
+            RateLimiter::for('payment-'.$operation, fn (Request $request) => Limit::perMinute($limit)
+                ->by('payment|'.$operation.'|'.$request->user()?->id.'|'.$request->route('invoice').'|'.$request->route('payment')));
+        }
         Gate::define('viewFamilyPortal', fn (User $user) => $user->is_active && $user->role === 'keluarga');
         Gate::define('viewMonitoring', fn (User $user) => $user->is_active && in_array($user->role, ['admin', 'perawat'], true));
         Gate::policy(User::class, UserPolicy::class);
