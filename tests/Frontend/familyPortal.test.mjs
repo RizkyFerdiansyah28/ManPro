@@ -100,6 +100,8 @@ test('dashboard kosong menjelaskan hubungan, tanpa pendaftaran atau kesimpulan a
     assert.match(text(html), /Hubungi Admin panti/);
     assert.doesNotMatch(html, /href="[^"]*(?:create|register|cctv|incidents|billing|gait)/);
     assert.match(text(html), /Tidak adanya data bukan bukti kondisi aman/);
+    assert.match(html, /href="\/keluarga\/tagihan"[^>]*>Tagihan<\/a>/);
+    assert.match(text(html), /Tagihan untuk melihat tagihan dan pembayaran saat layanannya tersedia pada lingkungan ini/);
 });
 test('multi-resident list memakai hanya IDs dari data yang diberikan, mempertahankan urutan dan status', async () => {
     const value = props('Index');
@@ -226,7 +228,9 @@ for (const [code, entitled, absent] of [['vip', 6, 0], ['class_2', 4, 2], ['clas
         assert.equal((html.match(/>Tidak tercantum dalam kelas<\/span>/g) ?? []).length, absent);
         assert.equal((html.match(/>Belum tersedia di portal<\/span>/g) ?? []).length, 6);
         assert.match(text(html), /terlepas dari pembayaran/);
-        assert.doesNotMatch(html, /<a\b|<button\b|href=/);
+        assert.deepEqual([...html.matchAll(/href="([^"]+)"/g)].map(match => match[1]), ['/keluarga/tagihan']);
+        assert.doesNotMatch(html, /<button\b/);
+        assert.match(text(html), /Tagihan saat layanannya tersedia pada lingkungan ini/);
         assert.match(text(html), /bukan bukti kondisi aman atau pembayaran lunas/);
     });
 }

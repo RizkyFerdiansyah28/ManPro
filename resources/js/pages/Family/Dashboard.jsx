@@ -27,7 +27,8 @@ export default function Dashboard({ summary, residents, as_of }) {
                 <dl className="ui-family-counts">{counts.map(([key, title]) => <div key={key}><dt>{title}</dt><dd>{summary[key]}</dd></div>)}</dl>
                 {summary.needs_review > 0 && <p className="ui-family-notice ui-family-notice--warning">Sebagian informasi layanan perlu diperiksa Admin. Jumlah masa tinggal dan layanan hanya mencakup informasi yang dapat dipastikan.</p>}
             </section>
-            <p className="ui-family-context-note">Histori insiden, laporan gait, notifikasi keluarga, pembayaran, dan live CCTV belum tersedia di portal ini. Tidak adanya data bukan bukti kondisi aman.</p>
+            <p className="ui-family-context-note">Histori insiden, laporan gait, notifikasi keluarga, dan live CCTV belum tersedia di portal ini. Tidak adanya data bukan bukti kondisi aman.</p>
+            <p className="ui-family-context-note">Buka menu <Link href="/keluarga/tagihan" className="ui-family-link">Tagihan</Link> untuk melihat tagihan dan pembayaran saat layanannya tersedia pada lingkungan ini.</p>
         </div>
     </AppLayout>;
 }

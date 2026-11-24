@@ -18,7 +18,8 @@ final class PaymentHttpReader
             ->join('public.users as f', 'f.id', '=', 'i.bill_to_family_id')
             ->where('i.id', $id)->where('i.billing_schema_version', 1)->whereNotNull('i.current_revision_id');
         $this->scope($query, $actor);
-        $row = $query->select('i.*', 'e.name as resident_name_current', 'f.name as owner_name_current')->selectRaw('i.amount::text AS amount')->first();
+        $row = $query->select('i.*', 'e.family_id as current_family_id', 'e.name as resident_name_current', 'f.name as owner_name_current')
+            ->selectRaw('i.amount::text AS amount')->first();
         abort_unless($row, 404);
 
         return $row;

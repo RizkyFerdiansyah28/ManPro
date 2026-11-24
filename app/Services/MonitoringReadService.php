@@ -29,9 +29,12 @@ class MonitoringReadService
                 count(*) FILTER (WHERE fall_status='false_alarm')::int AS false_alarm,
                 count(*) FILTER (WHERE is_verified)::int AS verified
                 FROM filtered
-            ), camera_counts AS (
-                SELECT count(*)::int AS registered, count(*) FILTER (WHERE is_active)::int AS active,
-                    count(*) FILTER (WHERE NOT is_active)::int AS inactive FROM cameras
+            ), camera_inventory AS (
+                SELECT count(*)::int AS registered, count(*) FILTER (WHERE c.is_active)::int AS active,
+                    count(*) FILTER (WHERE NOT c.is_active)::int AS inactive,
+                    COALESCE(json_agg(json_build_object('id',c.id,'name',c.name,
+                        'room',json_build_object('id',r.id,'code',r.code,'name',r.name)) ORDER BY r.code,c.id),'[]'::json) AS options
+                FROM cameras c JOIN rooms r ON r.id=c.room_id
             ), open_counts AS (
                 SELECT count(*) FILTER (WHERE status='pending')::int AS pending,
                     count(*) FILTER (WHERE status='acknowledged')::int AS acknowledged
@@ -40,7 +43,8 @@ class MonitoringReadService
             pending_preview AS (SELECT * FROM context WHERE fall_status='pending' ORDER BY occurred_at,id LIMIT 5)
             SELECT (SELECT as_of FROM clock) AS as_of,
                 (SELECT row_to_json(stats) FROM stats) AS stats,
-                (SELECT row_to_json(camera_counts) FROM camera_counts) AS cameras,
+                (SELECT json_build_object('registered',registered,'active',active,'inactive',inactive) FROM camera_inventory) AS cameras,
+                (SELECT options FROM camera_inventory) AS camera_options,
                 (SELECT row_to_json(open_counts) FROM open_counts) AS open_incidents,
                 (SELECT COALESCE(jsonb_agg(to_jsonb(recent) ORDER BY occurred_at DESC,id DESC),'[]'::jsonb) FROM recent) AS recent,
                 (SELECT COALESCE(jsonb_agg(to_jsonb(pending_preview) ORDER BY occurred_at,id),'[]'::jsonb) FROM pending_preview) AS pending_preview";
@@ -49,6 +53,7 @@ class MonitoringReadService
         return ['filters' => $filters, 'as_of' => $this->instant($result->as_of),
             'stats' => json_decode($result->stats, true, flags: JSON_THROW_ON_ERROR),
             'cameras' => json_decode($result->cameras, true, flags: JSON_THROW_ON_ERROR),
+            'camera_options' => json_decode($result->camera_options, true, flags: JSON_THROW_ON_ERROR),
             'open_incidents' => json_decode($result->open_incidents, true, flags: JSON_THROW_ON_ERROR),
             'recent' => $this->resources($result->recent, $request),
             'pending_preview' => $this->resources($result->pending_preview, $request)];

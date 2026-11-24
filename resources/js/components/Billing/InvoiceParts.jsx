@@ -3,12 +3,40 @@ import { useEffect, useRef, useState } from 'react';
 import StatusBadge from '../ui/StatusBadge';
 import Button from '../ui/Button';
 import { invoiceBase, reasons } from '../../utils/billing/contracts';
+import { invoiceDisplayStatus, isInvoiceDate, millisecondsUntilNextWibDay, wibDate } from '../../utils/billing/invoiceStatus';
 import formatPrice from '../../utils/formatPrice';
 
-export function InvoiceStatus({ status, legacy = false }) {
-    const labels = { paid: ['positive', 'Lunas'], unpaid: ['warning', 'Belum lunas'], cancelled: ['neutral', 'Dibatalkan'] };
-    const [tone, text] = labels[status] ?? ['danger', 'Status tidak valid'];
-    return <div className="ui-invoice-badges"><StatusBadge tone={tone}>{text}</StatusBadge>{legacy && <StatusBadge>Legacy · baca saja</StatusBadge>}</div>;
+export function useInvoiceDay() {
+    const [today, setToday] = useState(wibDate);
+    useEffect(() => {
+        let timer;
+        function refreshDay() {
+            clearTimeout(timer);
+            const now = new Date();
+            const day = wibDate(now);
+            setToday(day);
+            timer = setTimeout(refreshDay, millisecondsUntilNextWibDay(now, day));
+        }
+        refreshDay();
+        window.addEventListener('focus', refreshDay);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('focus', refreshDay);
+        };
+    }, []);
+    return today;
+}
+
+const invoiceStatusLabels = {
+    not_due: ['neutral', 'Belum jatuh tempo'], in_grace: ['warning', 'Dalam masa tenggang'], past_grace: ['danger', 'Lewat masa tenggang'],
+    paid: ['positive', 'Lunas'], cancelled: ['neutral', 'Dibatalkan'], unpaid: ['warning', 'Belum lunas'], unknown: ['neutral', 'Status tidak tersedia'],
+};
+
+export function InvoiceStatus({ invoice, today, legacy = false }) {
+    const status = invoiceDisplayStatus(invoice, today);
+    const [tone, text] = invoiceStatusLabels[status];
+    return <div className="ui-invoice-badges"><StatusBadge tone={tone}>{text}</StatusBadge>{legacy && <StatusBadge>Legacy · baca saja</StatusBadge>}
+        {status === 'unpaid' && <small className="ui-field-hint">Jadwal tagihan tidak tersedia</small>}</div>;
 }
 export function InvoiceError({ error }) {
     const ref = useRef(null);
@@ -19,6 +47,7 @@ export function InvoiceError({ error }) {
 export function Fact({ label, children }) { return <div><dt className="ui-management-facts__label">{label}</dt><dd className="ui-management-facts__value">{children ?? 'Tidak tersedia'}</dd></div>; }
 export function dateLabel(value, time = false) {
     if (!value) return 'Tidak tersedia';
+    if (!time && !isInvoiceDate(value)) return 'Tanggal tidak valid';
     const date = new Date(time ? value : value + 'T12:00:00+07:00');
     return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', ...(time ? { timeStyle: 'short' } : {}), timeZone: 'Asia/Jakarta' }).format(date) + (time ? ' WIB' : '') : 'Waktu tidak valid';
 }

@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import StatusBadge from '../ui/StatusBadge';
 
 const benefits = [
@@ -20,7 +21,8 @@ export default function FamilyBenefitAvailability({ catalog }) {
                 <dd><StatusBadge tone="neutral">{catalog[key] === true ? 'Tercantum dalam kelas' : catalog[key] === false ? 'Tidak tercantum dalam kelas' : 'Ketentuan belum tersedia'}</StatusBadge><span className="ui-family-muted">Belum tersedia di portal</span></dd>
             </div>)}</dl>
         </> : <p className="ui-family-section-description">Ketentuan kelas belum dapat ditampilkan sampai informasi layanan tersedia dan dapat dipastikan.</p>}
-        <p className="ui-family-context-note">Riwayat insiden, laporan gait, notifikasi keluarga, informasi tagihan/pembayaran, dan live CCTV belum tersedia. Tidak adanya data bukan bukti kondisi aman atau pembayaran lunas.</p>
+        <p className="ui-family-context-note">Riwayat insiden, laporan gait, notifikasi keluarga, dan live CCTV belum tersedia. Tidak adanya data bukan bukti kondisi aman atau pembayaran lunas.</p>
+        <p className="ui-family-context-note">Informasi pembayaran dapat dilihat melalui menu <Link href="/keluarga/tagihan" className="ui-family-link">Tagihan</Link> saat layanannya tersedia pada lingkungan ini.</p>
     </section>;
 }
 

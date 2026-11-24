@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { useEffect, useRef } from 'react';
 import Brand from '../components/Brand';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -13,10 +13,15 @@ const messages = {
     500: ['Layanan sedang bermasalah', 'Halaman belum dapat ditampilkan. Silakan coba kembali nanti.'],
     503: ['Layanan belum tersedia', 'Silakan coba kembali beberapa saat lagi.'],
 };
+const billingPaths = ['/admin/billing/invoices', '/admin/pembayaran', '/keluarga/tagihan'];
 
 export default function Error({ status }) {
     const known = Object.hasOwn(messages, status);
-    const [title, description] = known ? messages[status] : messages[500];
+    const path = usePage().url.split(/[?#]/, 1)[0];
+    const billingUnavailable = Number(status) === 503 && billingPaths.some(base => path === base || path.startsWith(base + '/'));
+    const [title, description] = billingUnavailable
+        ? ['Layanan tagihan dan pembayaran belum tersedia', 'Data tagihan belum dapat dimuat saat ini. Hubungi pengelola bila Anda memerlukan bantuan.']
+        : known ? messages[status] : messages[500];
     const heading = useRef(null);
     useEffect(() => { heading.current?.focus(); }, [status]);
     return <main className="ui-error-page">

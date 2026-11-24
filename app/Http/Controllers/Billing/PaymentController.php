@@ -4,13 +4,11 @@ namespace App\Http\Controllers\Billing;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Billing\PaymentHttpRequest;
-use App\Services\Billing\LocalPaymentProofStore;
 use App\Services\Billing\PaymentHttpReader;
 use App\Services\Billing\PaymentHttpService;
 use App\Services\Billing\PaymentResult;
-use App\Services\Billing\StoredPaymentProof;
+use App\Services\Billing\ProtectedPaymentProof;
 use App\Support\Billing\PaymentCommandContext;
-use Illuminate\Support\Facades\DB;
 
 final class PaymentController extends Controller
 {
@@ -65,21 +63,17 @@ final class PaymentController extends Controller
         return response()->json($this->result($service->reconcile($request)));
     }
 
-    public function proof(PaymentHttpRequest $request, string $invoice, string $payment, PaymentHttpReader $reader, LocalPaymentProofStore $proofs)
+    public function proof(PaymentHttpRequest $request, string $invoice, string $payment, ProtectedPaymentProof $proofs)
     {
-        // Read authorization and bytes under a single ownership snapshot.
-        $reader->invoice($request->user(), $invoice);
+        abort_unless($request->getRealMethod() === 'GET' && $request->isMethod('GET'), 405, '', ['Allow' => 'GET']);
+        foreach (['Range', 'If-Range', 'If-Match', 'If-None-Match', 'If-Modified-Since', 'If-Unmodified-Since'] as $header) {
+            abort_if($request->headers->has($header), 422);
+        }
 
-        return DB::transaction(function () use ($request, $invoice, $payment, $reader, $proofs) {
-            DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
-            DB::statement("SET LOCAL statement_timeout='10s'");
-            $row = $reader->payment($request->user(), $invoice, $payment);
-            $proof = StoredPaymentProof::fromRow($row);
-            $bytes = $proofs->bytes($proof, $row->submitted_by, $invoice);
+        ['bytes' => $bytes, 'mime' => $mime] = $proofs->download($request->user(), $invoice, $payment);
 
-            return response($bytes)->header('Content-Type', $proof->mime)->header('Content-Length', (string) strlen($bytes))
-                ->header('Content-Disposition', 'attachment; filename="bukti.'.($proof->mime === 'image/png' ? 'png' : 'jpg').'"');
-        });
+        return response($bytes)->header('Content-Type', $mime)->header('Content-Length', (string) strlen($bytes))
+            ->header('Content-Disposition', 'attachment; filename="bukti.'.($mime === 'image/png' ? 'png' : 'jpg').'"');
     }
 
     private function result(PaymentResult $result): array

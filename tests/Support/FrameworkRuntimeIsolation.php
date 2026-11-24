@@ -104,7 +104,9 @@ final class FrameworkRuntimeIsolation
             }
             self::path($value);
         }
-        if (ini_get('auto_prepend_file') !== str_replace('\\', '/', __DIR__.'/isolated-runtime-prepend.php')) {
+        $preverifiedC3 = class_exists(BillingC3Bootstrap::class, false) && BillingC3Bootstrap::verified();
+        $expectedPrepend = $preverifiedC3 ? '' : str_replace('\\', '/', __DIR__.'/isolated-runtime-prepend.php');
+        if (ini_get('auto_prepend_file') !== $expectedPrepend) {
             throw new LogicException('runtime_prepend_missing');
         }
         self::path(sys_get_temp_dir(), true);

@@ -21,7 +21,8 @@ class MonitoringAuthorizationTest extends MonitoringFeatureTestCase
     {
         $this->fall();
         $this->actingAs($role === 'admin' ? $this->admin : $this->account($role));
-        $this->get($home)->assertOk()->assertHeader('Cache-Control', 'no-store, private')->assertInertia(fn (Assert $p) => $p->component($component));
+        $this->get($home)->assertOk()->assertHeader('Cache-Control', 'no-store, private')->assertInertia(fn (Assert $p) => $p->component($component)
+            ->has('camera_options', 1)->where('camera_options.0.id', $this->monitorCamera->id));
         $this->get('/monitoring/records')->assertOk();
         $this->get('/monitoring/open-incidents')->assertOk();
         $this->assertTrue(Gate::allows('viewMonitoring'));
@@ -34,7 +35,11 @@ class MonitoringAuthorizationTest extends MonitoringFeatureTestCase
     public function test_guest_and_family_are_rejected_before_filter_lookups(): void
     {
         $this->actingAs($this->account('keluarga'));
+        $this->get('/keluarga')->assertOk()->assertInertia(fn (Assert $p) => $p->missing('camera_options'));
         DB::enableQueryLog();
+        foreach (['/admin', '/perawat'] as $path) {
+            $this->get($path)->assertForbidden();
+        }
         foreach (['/monitoring/records', '/monitoring/open-incidents'] as $path) {
             $this->get($path.'?camera_id=not-a-uuid&secret=PRIVATE-INJECTED')->assertForbidden()->assertDontSee('PRIVATE-INJECTED');
         }

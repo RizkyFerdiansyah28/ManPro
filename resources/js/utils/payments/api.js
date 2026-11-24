@@ -42,7 +42,7 @@ function fact(v, operation, invoiceId, paymentId) {
 const codes = new Set(['authentication_required','forbidden','not_found','method_not_allowed','json_required','request_too_large','unsupported_media','session_expired','invalid_input','rate_limited','request_failed',
     'invalid_command','invalid_rejection','invalid_proof','bank_confirmation_required','context_invalid','context_expired','target_not_found','invalid_payment_target','unmanaged_invoice','unauthorized','idempotency_conflict',
     'invoice_not_eligible','pending_payment_exists','stale_payment_state','stale_owner_context','outcome_unresolved','integrity_violation','gate_closed','proof_boundary_unavailable','proof_validation_unavailable',
-    'proof_storage_unavailable','proof_integrity_failure','unknown_commit_outcome','infrastructure_failure','lock_timeout','statement_timeout','transient_failure','owned_test_database_required']);
+    'proof_storage_unavailable','proof_integrity_failure','proof_use_unavailable','proof_scan_unavailable','unknown_commit_outcome','infrastructure_failure','lock_timeout','statement_timeout','transient_failure','owned_test_database_required']);
 function csrf(doc) {
     const cookie = doc?.cookie?.split(';').map(v => v.trim()).find(v => v.startsWith('XSRF-TOKEN='));
     try { if (cookie) return decodeURIComponent(cookie.slice(11)); } catch { /* Never expose cookie values. */ }

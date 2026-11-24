@@ -262,6 +262,17 @@ for (const status of [401, 'constructor', '<fixture>']) {
         assert.deepEqual(links(html), ['/', '/']);
     });
 }
+test('503 pada halaman billing menjelaskan ketersediaan tanpa membocorkan internal atau menyarankan kirim ulang', async () => {
+    for (const url of ['/admin/billing/invoices/create', '/admin/pembayaran', '/keluarga/tagihan?private=FIXTURE-QUERY']) {
+        const html = await page('Error', { status: 503, message: 'FIXTURE-DATABASE' }, null, url);
+        assert.match(html, />Layanan tagihan dan pembayaran belum tersedia<\/h1>/);
+        assert.match(html, /Hubungi pengelola bila Anda memerlukan bantuan/);
+        assert.doesNotMatch(html, /FIXTURE-(?:DATABASE|QUERY)|<button\b|<form\b|payment_http/);
+        assert.deepEqual(links(html), ['/', '/']);
+    }
+    const other = await page('Error', { status: 503 }, null, '/keluarga/tagihan-lain');
+    assert.match(other, />Layanan belum tersedia<\/h1>/);
+});
 test('UI-7 halaman error memindahkan fokus ke heading tanpa membuat retry', () => {
     const calls = [];
     const { ast, code } = sources['pages/Error'];

@@ -1,5 +1,16 @@
+export const paymentHoldKey = opaqueKey => 'silansia.payment.hold.v1:' + opaqueKey;
+
+export function watchPaymentHold(target, storage, opaqueKey, observe) {
+    const key = paymentHoldKey(opaqueKey);
+    const changed = event => {
+        if (event.storageArea === storage && (event.key === key || event.key === null)) observe();
+    };
+    target.addEventListener('storage', changed);
+    return () => target.removeEventListener('storage', changed);
+}
+
 export function installPaymentSessionBoundary({ router, target, initialAuth }) {
-    let actor = initialAuth?.user?.id;
+    let actor = initialAuth?.user?.id, role = initialAuth?.user?.role;
     let channel;
     const purge = broadcast => {
         target.dispatchEvent(new target.Event('silansia:payment-access-lost'));
@@ -9,9 +20,16 @@ export function installPaymentSessionBoundary({ router, target, initialAuth }) {
     const before = router.on('before', e => { if (String(e.detail.visit.method).toLowerCase() === 'post' && new URL(e.detail.visit.url, target.location.origin).pathname === '/logout') purge(true); });
     const navigate = router.on('navigate', e => {
         const auth = e.detail.page.props.auth;
-        if (!auth) return;
-        if (!auth.user || !['admin','keluarga'].includes(auth.user.role) || (actor && actor !== auth.user.id)) purge(true);
-        actor = auth.user?.id;
+        if (auth === undefined) return;
+        const next = auth?.user;
+        if (actor && (actor !== next?.id || role !== next?.role)) purge(true);
+        actor = next?.id;
+        role = next?.role;
     });
-    return () => { before(); navigate(); channel?.close(); };
+    const restored = event => { if (event.persisted) purge(false); };
+    target.addEventListener?.('pageshow', restored);
+    return () => {
+        before(); navigate(); channel?.close();
+        target.removeEventListener?.('pageshow', restored);
+    };
 }

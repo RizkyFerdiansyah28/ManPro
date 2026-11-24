@@ -58,6 +58,10 @@ function dashboard() {
         filters: { range: '7d' }, as_of: asOf,
         stats: { fall_detections: 17, gait_observations: 13, pending: 5, acknowledged: 2, resolved: 7, false_alarm: 3, verified: 8 },
         cameras: { registered: 4, active: 3, inactive: 1 },
+        camera_options: [
+            { id: 'registered-first', name: 'Kamera A', room: { id: 'room-first', code: 'U-01', name: 'Kamar <Uji>' } },
+            { id: 'registered-second', name: 'Kamera B', room: { id: 'room-second', code: 'U-02', name: 'Kamar bersama' } },
+        ],
         open_incidents: { pending: 23, acknowledged: 19 },
         pending_preview: [record({ id: 'old-first', camera: { name: 'Pending urutan pertama' } }), record({ id: 'old-second', camera: { name: 'Pending urutan kedua' } })],
         recent: [record({ id: 'recent', camera: { name: 'Aktivitas terbaru uji' } })],
@@ -102,6 +106,26 @@ for (const [role, component] of [['admin', 'AdminDashboard'], ['perawat', 'Careg
         }
     });
 }
+
+for (const [role, component] of [['admin', 'AdminDashboard'], ['perawat', 'CaregiverDashboard']]) {
+    test('dashboard ' + role + ' menampilkan satu pemilih kamera dan kamar sebelum player dibuka', async () => {
+        const html = await render(component, dashboard(), { role, url: '/' + role });
+        const picker = html.match(/<select\b[^>]*>(?=<option value="" selected="">Pilih kamera<\/option>).*?<\/select>/g);
+        assert.equal(picker?.length, 1);
+        assert.match(picker[0], /<option value="registered-first">Kamera A — U-01 · Kamar &lt;Uji&gt;<\/option>/);
+        assert.match(picker[0], /<option value="registered-second">Kamera B — U-02 · Kamar bersama<\/option>/);
+        assert.doesNotMatch(picker[0], /\bmultiple\b|old-first|recent/);
+        assert.doesNotMatch(html, /<video\b|>Start<\/button>|>Stop<\/button>/);
+        assert.ok(html.indexOf('Antrean insiden terbuka</h2>') < html.indexOf('Monitoring kamera demo</h2>'));
+        assert.ok(html.indexOf('Monitoring kamera demo</h2>') < html.indexOf('Aktivitas periode terpilih</h2>'));
+    });
+}
+
+test('dashboard tanpa kamera terdaftar menjelaskan status kosong tanpa membuka kontrol media', async () => {
+    const html = await render('CaregiverDashboard', { ...dashboard(), camera_options: [] }, { role: 'perawat', url: '/perawat' });
+    assert.match(html, /Belum ada kamera terdaftar/);
+    assert.doesNotMatch(html, /Kamera dan kamar|<video\b|>Start<\/button>|href="\/admin\/cameras/);
+});
 
 test('statistik periode menampilkan tujuh nilai server tanpa digabung dengan antrean', async () => {
     const stats = freeze(dashboard().stats);

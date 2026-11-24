@@ -7,10 +7,12 @@ import MonitoringStats, { CameraAdministration } from './MonitoringStats';
 import MonitoringActivityTable from './MonitoringActivityTable';
 import MonitoringSection from './MonitoringSection';
 import MonitoringContextNote from './MonitoringContextNote';
+import CameraMonitor from './CameraMonitor';
 import { monitoringRangeLabel } from '../../utils/monitoringFilters';
 
-export default function MonitoringDashboard({ filters, as_of, stats, cameras, open_incidents, recent, pending_preview }) {
-    const admin = usePage().props.auth.user.role === 'admin';
+export default function MonitoringDashboard({ filters, as_of, stats, cameras, camera_options, open_incidents, recent, pending_preview }) {
+    const user = usePage().props.auth.user;
+    const admin = user.role === 'admin';
     return (
         <AppLayout>
             <Head title={'Monitoring ' + (admin ? 'Admin' : 'Perawat') + ' · Silansia'} />
@@ -19,6 +21,7 @@ export default function MonitoringDashboard({ filters, as_of, stats, cameras, op
                     <StatusBadge tone={admin ? 'neutral' : 'info'}>{admin ? 'Pengawasan Admin · baca saja' : 'Penanganan oleh Perawat melalui detail insiden'}</StatusBadge>
                 </MonitoringHeader>
                 <OpenIncidents counts={open_incidents} records={pending_preview} admin={admin} />
+                <CameraMonitor key={user.id} cameras={camera_options} />
                 <MonitoringSection title="Aktivitas periode terpilih" description={monitoringRangeLabel(filters)} className="ui-monitoring-period">
                     <MonitoringFilters filters={filters} url={admin ? '/admin' : '/perawat'} mode="dashboard" headingLevel={3} />
                     <MonitoringStats stats={stats} />

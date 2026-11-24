@@ -5,12 +5,14 @@ import ManagementForm, { ManagementControl } from '../../../../components/Manage
 import Button from '../../../../components/ui/Button';
 import EmptyState from '../../../../components/ui/EmptyState';
 import TableFrame from '../../../../components/ui/TableFrame';
-import { InvoiceStatus, dateLabel } from '../../../../components/Billing/InvoiceParts';
+import { InvoiceStatus, dateLabel, useInvoiceDay } from '../../../../components/Billing/InvoiceParts';
 import { invoice, invoiceBase, page } from '../../../../utils/billing/contracts';
 import formatPrice from '../../../../utils/formatPrice';
 
 export function InvoiceIndexContent({ invoices, filters = {} }) {
+    const today = useInvoiceDay();
     const form = useForm({ elderly_id: filters.elderly_id ?? '', billing_month: (filters.billing_month ?? '').slice(0, 7), status: filters.status ?? '', sort: filters.sort ?? 'billing_month_desc', per_page: filters.per_page ?? 15 });
+    const filtered = Boolean(filters.elderly_id || filters.billing_month || filters.status);
     let valid = true;
     try { page(invoices, (r) => invoice(r), invoiceBase); } catch { valid = false; }
     function filter(e) {
@@ -31,8 +33,11 @@ export function InvoiceIndexContent({ invoices, filters = {} }) {
         {form.processing && <p role="status" className="ui-invoice-loading">Memuat daftar invoice…</p>}
         {!valid ? <div role="alert" className="ui-management-error-summary"><p>Data invoice tidak dapat diverifikasi. Daftar tidak ditampilkan sebagai hasil kosong. Muat ulang atau minta Admin memeriksa integritas data.</p></div> : <>
             {invoices.data.length ? <TableFrame label="Daftar invoice layanan"><table className="ui-management-table ui-invoice-table"><caption className="sr-only">Invoice per lansia dan bulan layanan</caption><thead><tr><th scope="col">Invoice / lansia</th><th scope="col">Bulan</th><th scope="col">Nominal</th><th scope="col">Status</th><th scope="col">Jatuh tempo</th><th scope="col">Tindakan</th></tr></thead><tbody>
-                {invoices.data.map((r) => <tr key={r.id}><td><p className="font-semibold break-all">{r.number}</p><p className="mt-2">{r.resident.name_current ?? 'Nama kini tidak tersedia'}</p><p className="ui-field-hint break-all">{r.resident.id}</p></td><td>{r.billing_month.slice(0, 7)}</td><td className="ui-invoice-money">{formatPrice(r.amount)}</td><td><InvoiceStatus status={r.status} legacy={r.record_kind === 'legacy'} /></td><td>{dateLabel(r.due_date)}</td><td><Link href={r.detail_url} className="ui-management-link" aria-label={`Detail invoice ${r.number}`}>Detail</Link></td></tr>)}
-            </tbody></table></TableFrame> : <EmptyState title="Belum ada invoice yang sesuai" description="Ubah filter atau periksa kelayakan layanan melalui preview penerbitan." />}
+                {invoices.data.map((r) => <tr key={r.id}><td><p className="font-semibold break-all">{r.number}</p><p className="mt-2">{r.resident.name_current ?? 'Nama kini tidak tersedia'}</p><p className="ui-field-hint break-all">{r.resident.id}</p></td><td>{r.billing_month.slice(0, 7)}</td><td className="ui-invoice-money">{formatPrice(r.amount)}</td><td><InvoiceStatus invoice={r} today={today} legacy={r.record_kind === 'legacy'} /></td><td>{dateLabel(r.due_date)}</td><td><Link href={r.detail_url} className="ui-management-link" aria-label={`Detail invoice ${r.number}`}>Detail</Link></td></tr>)}
+            </tbody></table></TableFrame> : <EmptyState
+                title={invoices.total > 0 ? 'Halaman ini tidak memuat invoice' : filtered ? 'Belum ada invoice yang sesuai' : 'Belum ada invoice diterbitkan'}
+                description={invoices.total > 0 ? 'Kembali ke halaman sebelumnya atau terapkan ulang filter.' : filtered ? 'Ubah filter untuk melihat invoice lain.' : 'Gunakan Terbitkan invoice untuk memeriksa kelayakan melalui preview.'}
+            />}
             <p className="ui-invoice-loading ui-field-hint">Penanggung finansial snapshot dibaca pada detail jika tersedia. Owner historis untuk legacy tidak direkonstruksi dari keluarga saat ini.</p>
             <div className="ui-management-pagination"><p>{invoices.total} invoice · Halaman {invoices.current_page} dari {invoices.last_page}</p><nav aria-label="Halaman invoice">{invoices.prev_page_url ? <Link href={invoices.prev_page_url} preserveState className="ui-management-link">Sebelumnya</Link> : <span aria-disabled="true">Sebelumnya</span>}{invoices.next_page_url ? <Link href={invoices.next_page_url} preserveState className="ui-management-link">Berikutnya</Link> : <span aria-disabled="true">Berikutnya</span>}</nav></div>
         </>}

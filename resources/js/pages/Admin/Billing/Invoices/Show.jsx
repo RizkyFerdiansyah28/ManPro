@@ -1,14 +1,15 @@
 import { Head, Link } from '@inertiajs/react';
 import ManagementLayout from '../../../../components/Management/ManagementLayout';
 import ManagementPageHeader from '../../../../components/Management/ManagementPageHeader';
-import { Fact, InvoiceStatus, dateLabel } from '../../../../components/Billing/InvoiceParts';
+import { Fact, InvoiceStatus, dateLabel, useInvoiceDay } from '../../../../components/Billing/InvoiceParts';
 import { invoice as validateInvoice, invoiceBase } from '../../../../utils/billing/contracts';
 import formatPrice from '../../../../utils/formatPrice';
 
 export function InvoiceDetailContent({ invoice }) {
+    const today = useInvoiceDay();
     try { validateInvoice(invoice, true); } catch { return <div role="alert" className="ui-management-error-summary">Data detail invoice tidak dapat diverifikasi. Minta Admin memeriksa integritasnya.</div>; }
     const i = invoice; const r = i.current_revision;
-    return <><section className="ui-management-panel"><div className="ui-management-actions"><h2 className="ui-management-section-title">{i.number}</h2><InvoiceStatus status={i.status} legacy={i.record_kind === 'legacy'} /></div><dl className="ui-management-facts">
+    return <><section className="ui-management-panel"><div className="ui-management-actions"><h2 className="ui-management-section-title">{i.number}</h2><InvoiceStatus invoice={i} today={today} legacy={i.record_kind === 'legacy'} /></div><dl className="ui-management-facts">
         <Fact label="Nominal invoice"><strong className="ui-invoice-amount">{formatPrice(i.amount)}</strong></Fact><Fact label="Bulan layanan">{i.billing_month.slice(0, 7)}</Fact>
         <Fact label="UUID invoice">{i.id}</Fact><Fact label="Lansia · nama saat ini">{i.resident.name_current ?? 'Tidak tersedia'}<span className="block break-all">{i.resident.id}</span></Fact>
         <Fact label="Jatuh tempo">{dateLabel(i.due_date)}</Fact><Fact label="Akhir tenggang">{dateLabel(i.grace_period_ends_on)}</Fact>
